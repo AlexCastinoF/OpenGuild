@@ -1,11 +1,11 @@
 # OpenGuild
 
-Comunidade open source no estilo Discord: servidores, canais de texto e voz, compartilhamento de tela, temas, YouTube, WhatsApp e partidas de CS2. Você hospeda na sua máquina ou numa VPS.
+Comunidade open source no estilo Discord: servidores, canais de texto e voz, compartilhamento de tela com link público, trocas de itens Steam, acesso remoto (RustDesk), temas, YouTube, WhatsApp e partidas de CS2. Você hospeda na sua máquina ou numa VPS.
 
-O app de desktop (Electron) é um cliente fino: a interface vem do site. Atualizar o servidor atualiza a comunidade para todo mundo; o `.exe` fica com a bandeja, a captura de áudio e o auto-update.
+O app de desktop (Electron) é um cliente fino: a interface vem do site. Atualizar o servidor atualiza a comunidade para todo mundo; o `.exe` fica com a bandeja, a captura de áudio, o acesso remoto e o auto-update.
 
 ```
-Self-hosted Discord-style community: servers, text, voice, screen share, and a desktop app.
+Self-hosted Discord-style community: servers, text, voice, screen share, public watch, Steam trades, remote desktop, and a desktop app.
 ```
 
 ## Sumário
@@ -19,18 +19,21 @@ Self-hosted Discord-style community: servers, text, voice, screen share, and a d
 7. [Instalar numa VPS com o instalador](#instalar-numa-vps-com-o-instalador)
 8. [Instalar ou atualizar sem o instalador](#instalar-ou-atualizar-sem-o-instalador)
 9. [O que o bootstrap faz na VPS](#o-que-o-bootstrap-faz-na-vps)
-10. [WhatsApp](#whatsapp)
-11. [App desktop](#app-desktop)
-12. [Partidas CS2](#partidas-cs2)
-13. [Operação](#operação)
-14. [Contribuindo](#contribuindo)
-15. [Licença e créditos](#licença-e-créditos)
+10. [Steam, vitrine e trocas](#steam-vitrine-e-trocas)
+11. [Compartilhamento de tela e link público](#compartilhamento-de-tela-e-link-público)
+12. [Acesso remoto (RustDesk)](#acesso-remoto-rustdesk)
+13. [WhatsApp](#whatsapp)
+14. [App desktop](#app-desktop)
+15. [Partidas CS2](#partidas-cs2)
+16. [Operação](#operação)
+17. [Contribuindo](#contribuindo)
+18. [Licença e créditos](#licença-e-créditos)
 
 ## O que é
 
 O OpenGuild é um servidor de comunidade que você mesmo sobe. Cada instalação tem os próprios usuários, servidores e arquivos. Não depende de um serviço central.
 
-No navegador você entra, cria o primeiro administrador em `/setup` e usa a comunidade. No Windows, o app de desktop abre o mesmo site e acrescenta captura de jogo, tray e partidas de CS2 no PC do host.
+No navegador você entra, cria o primeiro administrador em `/setup` e usa a comunidade (chat, voz, tela, trocas Steam, WhatsApp). No Windows, o app de desktop abre o mesmo site e acrescenta captura de jogo, tray, acesso remoto e partidas de CS2 no PC do host.
 
 A Central de Deploy (`installer-win`) também instala outros sistemas da mesma família (reuniões, mídia, RH). Este README cobre o OpenGuild. Os demais têm o próprio guia na pasta do projeto.
 
@@ -38,20 +41,28 @@ A Central de Deploy (`installer-win`) também instala outros sistemas da mesma f
 
 ### Comunidade
 
-- Servidores, categorias e canais de texto, voz e transmissão
-- Mensagens em tempo real (Socket.IO), DMs e presença online
+- Servidores, categorias e canais de texto, voz e tela
+- Mensagens em tempo real (Socket.IO), DMs com badge de não lidas e presença online
+- Página **Descobrir** (`/descobrir`): servidores listados publicamente e pedido de entrada
 - Cargos com permissões na API (incluindo `@everyone`). O dono tem tudo; só o dono edita o cargo Admin
-- Convites, expulsar, bloquear e remover servidor (a pessoa sai da voz e do socket na hora)
+- Convites (`/convite/:codigo`), expulsar, bloquear e remover servidor (a pessoa sai da voz e do socket na hora)
+- Pedidos de entrada: o admin aprova ou recusa
 - Lista de membros, roster de voz sem precisar entrar no canal
+- Status de trabalho (disponível, ocupado, em ligação…) e ramal no perfil; overlay de chamada se houver PABX
+- Tour de boas-vindas no primeiro acesso
 - Uma sessão de voz por usuário: outra aba no mesmo canal toma o lugar da anterior
 
 ### Voz e transmissão
 
-- Canais de voz com LiveKit: entrar, mute, ensurdecimento
+- Canais de voz com LiveKit: entrar, mute, ensurdecimento, volume por participante
 - A voz continua ao navegar; card flutuante ao sair da sala
-- Compartilhar tela e, no Electron, o áudio do jogo ou de um aplicativo
-- Transmissão pública com contagem real de espectadores e limite (`watch_full`)
+- Seletor de microfone e fone na barra inferior
+- Compartilhar tela (monitor ou janela) com resolução, FPS e bitrate travados
+- No Electron: áudio do jogo ou de um aplicativo (loopback WASAPI)
+- Link público `/assistir/:slug` — convidado assiste sem conta, com limite de espectadores
+- Chat opcional na página pública (só leitura ou convidados podem escrever)
 - Filtros de ruído no cliente: Krisp, DeepFilterNet, RNNoise, DTLN, com AEC e medidores
+- Retransmissão RTMP para Twitch/YouTube **ainda não** está nesta versão
 
 ### Customização e marca
 
@@ -66,7 +77,8 @@ A Central de Deploy (`installer-win`) também instala outros sistemas da mesma f
 ### Perfil e Steam
 
 - Avatar, nome, ramal, contas de stream e histórico
-- Ligar Steam, vitrine de itens e propostas de troca entre membros
+- Ligar Steam (OpenID), vitrine de até 5 itens no perfil, detalhe do item (raridade, exterior, inspect, float)
+- Propostas de troca entre membros da comunidade (inventário público + Trade URL); a oferta real fecha na Steam
 - OpenID da Steam pelo proxy `/steam` (precisa de `PUBLIC_BASE_URL` certo)
 
 ### YouTube
@@ -95,7 +107,7 @@ A Central de Deploy (`installer-win`) também instala outros sistemas da mesma f
 - Cliente Electron com bandeja: fechar a janela mantém a voz; sair de verdade desliga
 - Auto-update pelo feed `/desktop/`
 - Captura de tela e áudio de jogo (loopback)
-- Acesso remoto opcional via RustDesk self-hosted
+- Acesso remoto entre membros via RustDesk self-hosted (pedir controlo ou pedir ajuda)
 - Host de partidas CS2 (dedicated local + UPnP)
 
 ### Partidas CS2
@@ -126,9 +138,9 @@ Node 20 ou 22. Python 3.10+ só para o instalador e os scripts de deploy.
 
 ```
 OpenGuild/
-  apps/api          API NestJS (JWT, Socket.IO, Prisma, LiveKit, temas, YouTube, CS2)
-  apps/web          Interface React (comunidade, voz, YouTube, temas, WhatsApp)
-  apps/desktop      Electron (bandeja, captura, updater, dedicated CS2)
+  apps/api          API NestJS (JWT, Socket.IO, Prisma, LiveKit, Steam/trocas, remoto, temas, YouTube, CS2)
+  apps/web          Interface React (comunidade, voz, tela, watch público, Steam, WhatsApp)
+  apps/desktop      Electron (bandeja, captura, RustDesk, updater, dedicated CS2)
   packages/shared   Tipos e helpers compartilhados
   whatsapp/         Gateway Zapo (Node), só em 127.0.0.1
   deploy/           Bootstrap da VPS e scripts de install/update
@@ -191,7 +203,8 @@ Edite o `.env`:
 - `DATABASE_URL` — Postgres vazio, por exemplo `postgresql://postgres@127.0.0.1:5432/openguild?schema=public`
 - `PUBLIC_BASE_URL` e `CORS_ORIGIN` — `http://127.0.0.1:5174`
 - `VITE_API_URL` e `VITE_WS_URL` — `http://127.0.0.1:8014`
-- `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` — se for testar voz
+- `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` — se for testar voz ou compartilhamento de tela
+- `RUSTDESK_ID_SERVER` e `RUSTDESK_KEY` — se for testar acesso remoto (servidor hbbs/hbbr próprio)
 - `ZAPO_GATEWAY_SECRET` e `ZAPO_DATABASE_URL` — se for testar WhatsApp
 
 Crie o banco no Postgres (`CREATE DATABASE openguild;`) ou use o compose:
@@ -381,6 +394,94 @@ nginx -t && systemctl reload nginx
 curl -I https://SEU-DOMINIO/
 ```
 
+## Steam, vitrine e trocas
+
+A comunidade não substitui a Steam. Ela organiza a proposta; a oferta de itens fecha no cliente Steam, com a Trade URL de cada um.
+
+### Ligar a conta
+
+1. No perfil, **Ligar Steam**. O OpenID volta para `/api/steam/link/callback`.
+2. `PUBLIC_BASE_URL` tem de ser o endereço público real (no desktop o app abre o navegador e devolve o vínculo).
+3. Cole a **Trade URL** (Inventário → Ofertas de troca → Privacidade → URL de oferta). Sem ela ninguém consegue propor troca com você.
+4. O inventário precisa estar **público** na Steam. Inventário privado aparece como indisponível.
+
+### Vitrine
+
+No perfil você escolhe até **5 itens** do inventário. Eles aparecem no cartão do membro (raridade, exterior, inspect, float quando a Steam devolve). Outro membro pode abrir o item e, dali, começar uma proposta.
+
+### Como funciona a troca
+
+1. Abra o perfil do parceiro (ou **Minhas trocas**) e monte o que você dá e o que pede.
+2. Os dois lados precisam de Steam ligada, Trade URL salva e inventário público.
+3. A proposta entra como `Proposta`. Só o parceiro aceita ou recusa.
+4. Ao aceitar no app, o status vira **Envio manual na Steam**. Cada um abre a Trade URL do outro, monta a mesma oferta no cliente Steam e confirma lá.
+5. Quando a oferta da Steam concluir, marque **Concluída** na comunidade. O proponente pode cancelar enquanto não fechou; o parceiro pode recusar.
+
+Histórico: até 50 trocas por par, com contagem de pendentes, concluídas e canceladas.
+
+A API **não** envia a oferta pela Steam Web API. Não pedimos `sessionid` nem cookie da Steam. Quem forkar o projeto e quiser automação de oferta assume os termos da Valve.
+
+## Compartilhamento de tela e link público
+
+Isso é LiveKit, não RustDesk. Serve para o grupo ver a tela na sala — e, se quiser, para gente de fora assistir sem conta.
+
+### Na sala
+
+1. Entre num canal de **voz** ou **tela**.
+2. **Compartilhar tela** abre o assistente: título, resolução (fonte / 480 / 720 / 1080), FPS (15 / 30 / 60), bitrate fixo ou automático, áudio da tela (desligado, só da janela, ou sistema).
+3. No desktop o padrão é **só vídeo** (a call de voz fica estável). Áudio do jogo ou de um app usa loopback WASAPI; escolha uma **janela**, não o ecrã inteiro, no modo “só da janela”.
+4. No Chrome/Edge marque “Compartilhar áudio” no seletor do navegador se quiser som da aba.
+5. Quem está na sala vê o palco, pode focar em tela cheia e ajustar volume por pessoa.
+6. **Parar transmissão** encerra a sessão. Outra live do mesmo usuário substitui a anterior.
+
+Permissão: `live.go_live` (o cargo `@everyone` pode ter isso ou não; o dono decide).
+
+### Link público (`/assistir/:slug`)
+
+No mesmo assistente, em **Link público (sem login)**:
+
+- Gerar link para qualquer pessoa assistir
+- Limite de espectadores (1–500; o padrão é 50). Extra recebe `watch_full`
+- Convidados podem escolher o nome
+- Chat na página pública (só ver, ou também escrever)
+
+O endereço fica `https://seu-dominio/assistir/<slug>`. Quem tem o link entra como convidado: vê a tela compartilhada e, se você ligou, o chat. Não precisa de conta. A contagem de espectadores é real.
+
+Twitch e YouTube no assistente ainda são placeholders — retransmissão RTMP não está nesta versão.
+
+LiveKit precisa estar no `.env` (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`). Sem isso a comunidade sobe; voz, tela e o link público não.
+
+## Acesso remoto (RustDesk)
+
+Acesso ao **PC** do membro (rato e teclado), não à tela da call. Roda no app desktop, com um RustDesk **self-hosted** (hbbs/hbbr) da sua instalação. Não use o servidor público da RustDesk: o ID e o tráfego ficariam fora da sua VPS.
+
+### O que o membro vê
+
+Dois sentidos, a partir do cartão de outro membro (quem pede precisa de **premium** ou ser super admin; os dois têm de ser do mesmo servidor):
+
+- **Controlar o PC dele** — o outro aceita e você entra na máquina dele
+- **Pedir que ele ajude no seu PC** — você é o anfitrião; o outro controla
+
+O pedido aparece no desktop do alvo, com contagem (~60 s). Só avança se aceitar. Dá para encerrar a qualquer momento. Sessão ativa dura até 2 h. Uma sessão por pessoa de cada vez.
+
+Os dois PCs precisam do **app desktop** desta comunidade. O agente registra o ID RustDesk e manda heartbeat; a lista de membros mostra quem está online para remoto.
+
+### Servidor RustDesk
+
+Na VPS (ou na sua rede): hbbs (ID) + hbbr (relay). No `.env` da API:
+
+```
+RUSTDESK_ID_SERVER=seudominio
+RUSTDESK_RELAY_SERVER=seudominio
+RUSTDESK_KEY=chave-publica-do-hbbs
+# opcional, para a API confirmar que o ID existe no hbbs:
+# RUSTDESK_DB_PATH=/opt/rustdesk/data/db_v2.sqlite3
+```
+
+O desktop lê `/api/remote/config`, grava ID Server + chave no RustDesk local (pode pedir UAC uma vez) e **não** aponta para o servidor público da RustDesk. Há um script de instalação em `deploy/install_rustdesk.sh`.
+
+A senha da sessão é gerada no host e não aparece para outros membros. Sem `RUSTDESK_*` no `.env`, o pedido de remoto falha de propósito.
+
 ## WhatsApp
 
 O hub da comunidade fala com um gateway Node em `whatsapp/gateway.mjs`. Esse processo é o único que abre sessão no WhatsApp Web.
@@ -404,7 +505,7 @@ WhatsApp é conta pessoal. Quem forkar o projeto precisa seguir os termos do Wha
 
 Pasta `apps/desktop`. Versão atual do pacote: **1.2.43**. O `appId` do instalador Windows é `app.openguild.desktop`.
 
-O `.exe` instalado carrega a UI remota (`SF_COMMUNITY_URL`, padrão o domínio da sua VPS). Por isso um `git pull` + update na VPS muda temas, YouTube e comunidade sem gerar outro instalador.
+O `.exe` instalado carrega a UI remota (`SF_COMMUNITY_URL`, padrão o domínio da sua VPS). Por isso um `git pull` + update na VPS muda temas, YouTube, trocas e comunidade sem gerar outro instalador. O remoto e o host de CS2 ficam no processo Electron.
 
 ```powershell
 # gerar o instalador Windows
@@ -445,7 +546,10 @@ Os match packs (`match-packs/`) são DLLs + manifesto. A API publica em `/api/ma
 | Login / API 500 `P2022` | Coluna React ausente | Rodar `deploy/add_react_columns.sql` |
 | `prisma db push` quer apagar `zapo_*` | Update com banco compartilhado | Abortar; use `REUSE_STEAMFARM_DB=1` |
 | Upload 500 | Usuário do serviço sem escrita em `uploads/` | Conferir dono e permissão da pasta |
-| Sem voz | LiveKit vazio no `.env` | Preencher `LIVEKIT_*` e reiniciar o serviço |
+| Sem voz / sem tela / link público 404 | LiveKit vazio no `.env` | Preencher `LIVEKIT_*` e reiniciar o serviço |
+| Troca recusada com `inventory_unavailable` | Inventário Steam privado | Inventário público nos dois lados + Trade URL |
+| Remoto não abre | Sem RustDesk self-hosted ou sem desktop | `RUSTDESK_ID_SERVER` + `RUSTDESK_KEY`; os dois no app desktop; quem pede precisa de premium |
+| Pedido remoto some | Expirou ou outra sessão ativa | Aceitar em ~60 s; uma sessão por pessoa |
 | WhatsApp não conecta | Gateway parado ou segredo diferente | `ZAPO_GATEWAY_SECRET` igual na API e no gateway |
 | Electron sem update | `/desktop/latest.yml` ausente | Gerar o build e enviar o feed |
 | CS2 “AppID inválido” | Sem GSLT ou endereço errado | Token App 730; amigos no `WAN:2701x` |

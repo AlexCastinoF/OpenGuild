@@ -39,7 +39,7 @@ export class RemoteService {
     return seenAt > 0 && this.now() - seenAt < AGENT_ONLINE_MS / 1000;
   }
 
-  /** Confirma que o ID está na BD do hbbs Castino (evita "ID não existe"). */
+  /** Confirma que o ID está na BD do hbbs desta instalacao (evita "ID não existe"). */
   private peerRegisteredOnHbbs(rustdeskId: string): boolean | null {
     const id = String(rustdeskId || '').trim();
     if (!/^\d{6,}$/.test(id)) return false;
