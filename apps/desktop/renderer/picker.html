@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Compartilhar tela</title>
+  <style>
+    :root {
+      --bg: #0b0e13;
+      --panel: #171b24;
+      --line: rgba(255,255,255,.08);
+      --text: #e8edf5;
+      --muted: #8b95a8;
+      --accent: #5eb8e8;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.4 "Segoe UI", system-ui, sans-serif;
+    }
+    body { display: flex; flex-direction: column; padding: 16px; gap: 12px; }
+    h1 { margin: 0; font-size: 1.05rem; }
+    p { margin: 0; color: var(--muted); font-size: .86rem; }
+    .grid {
+      flex: 1;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+      align-content: start;
+    }
+    .src {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px;
+      cursor: pointer;
+      text-align: left;
+      display: grid;
+      gap: 8px;
+    }
+    .src:hover, .src:focus { border-color: var(--accent); outline: none; }
+    .src img {
+      width: 100%;
+      aspect-ratio: 16/10;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #000;
+    }
+    .src span {
+      font-size: .78rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <h1>Escolha o que compartilhar</h1>
+  <p>Tela inteira ou uma janela específica.</p>
+  <div class="grid" id="grid"></div>
+  <div class="actions">
+    <button type="button" class="btn" id="cancel">Cancelar</button>
+  </div>
+  <script src="picker.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[Unit]
+Description=SteamFarm Comunidade React — API NestJS
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=steamfarmreact
+Group=steamfarmreact
+WorkingDirectory=/opt/steamfarm-react/apps/api
+EnvironmentFile=-/opt/steamfarm-react/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /opt/steamfarm-react/apps/api/dist/main.js
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

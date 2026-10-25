@@ -1,0 +1,19 @@
+{
+  "name": "steamfarm-zapo",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@zapo-js/media-utils": "^1.0.0",
+    "@zapo-js/store-postgres": "^1.1.0",
+    "pg": "^8.16.0",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4",
+    "ws": "^8.18.3",
+    "zapo-js": "^1.7.1"
+  }
+}

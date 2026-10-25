@@ -1,0 +1,9 @@
+-- Local / VPS: aplicar colunas e tabela de temas premium
+ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_themes BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_disabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS user_themes (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  surfaces JSONB NOT NULL DEFAULT '{}',
+  updated_at DOUBLE PRECISION NOT NULL
+);

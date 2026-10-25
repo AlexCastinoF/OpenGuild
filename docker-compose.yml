@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: steamfarm
+      POSTGRES_PASSWORD: steamfarm
+      POSTGRES_DB: steamfarm_react
+    ports:
+      - "5434:5432"
+    volumes:
+      - steamfarm_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U steamfarm -d steamfarm_react"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - steamfarm_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://steamfarm:steamfarm@postgres:5432/steamfarm_react?schema=public
+      REDIS_URL: redis://redis:6379
+      PORT: "8014"
+    ports:
+      - "8014:8014"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - steamfarm_uploads:/app/uploads
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "8084:80"
+    depends_on:
+      - api
+
+volumes:
+  steamfarm_pg:
+  steamfarm_redis:
+  steamfarm_uploads:

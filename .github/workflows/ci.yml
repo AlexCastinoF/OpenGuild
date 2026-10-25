@@ -1,0 +1,32 @@
+# Verificação de tipos e sintaxe (o projeto não tem testes automatizados).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci --ignore-scripts
+      - name: Build do pacote compartilhado
+        run: npm run build -w @steamfarm/shared
+      - name: Prisma generate
+        run: npx prisma generate
+        working-directory: apps/api
+      - name: Tipos da API
+        run: npx tsc --noEmit -p .
+        working-directory: apps/api
+      - name: Tipos do web
+        run: npx tsc -b
+        working-directory: apps/web
+      - name: Sintaxe do desktop
+        run: node --check apps/desktop/main.js && node --check apps/desktop/preload.js

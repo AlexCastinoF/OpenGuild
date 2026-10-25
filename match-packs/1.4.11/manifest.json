@@ -1,0 +1,35 @@
+{
+  "version": "1.4.11",
+  "minDesktopVersion": "1.2.39",
+  "publishedAt": "2026-09-23T23:09:58.778Z",
+  "changelog": "Sons de kill: fallback no cliente (EmitSoundFilter partido no CS2). Deixa de apagar mm_extra_addons ao gravar admin.",
+  "defaults": {
+    "mp_startmoney": 800,
+    "mp_maxmoney": 65000,
+    "mp_roundtime": 1.92,
+    "mp_freezetime": 15,
+    "mp_buytime": 20,
+    "mp_warmuptime": 60,
+    "cash_player_killed_enemy_default": 300,
+    "cash_team_winner_bonus": 4000,
+    "cash_team_loser_bonus": 1400,
+    "mp_afterroundmoney": 0,
+    "mp_limitteams": 0,
+    "mp_spectators": 1,
+    "mp_autoteambalance": 0
+  },
+  "dll": "SfAssignTeams.dll",
+  "files": [
+    "SfAssignTeams.dll",
+    "SfKillSounds.dll",
+    "sounds-catalog.json"
+  ],
+  "features": {
+    "killSounds": true
+  },
+  "workshopIds": [
+    "3461824328"
+  ],
+  "size": 41984,
+  "sha256": "d7f30af1c238fd094e882c4d5b77ca9339b52dcb3f3633e1b9b08b156082f9bd"
+}

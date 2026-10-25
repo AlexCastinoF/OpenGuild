@@ -1,0 +1,104 @@
+{
+  "latest": "1.4.12",
+  "versions": [
+    {
+      "version": "1.4.12",
+      "publishedAt": "2026-09-23T23:25:52.749Z",
+      "changelogSummary": "Sons Quake: volta o EmitSound do 1.4.1/1.4.2 e play sounds/cs2/quakesounds (sem cheats). O Desktop deixava de instalar a DLL nova.",
+      "sha256": "d7f30af1c238fd094e882c4d5b77ca9339b52dcb3f3633e1b9b08b156082f9bd",
+      "size": 41984
+    },
+    {
+      "version": "1.4.11",
+      "publishedAt": "2026-09-23T23:09:58.778Z",
+      "changelogSummary": "Sons de kill: fallback no cliente (EmitSoundFilter partido no CS2). Deixa de apagar mm_extra_addons ao gravar admin.",
+      "sha256": "d7f30af1c238fd094e882c4d5b77ca9339b52dcb3f3633e1b9b08b156082f9bd",
+      "size": 41984
+    },
+    {
+      "version": "1.4.10",
+      "publishedAt": "2026-09-23T22:06:47.978Z",
+      "changelogSummary": "Volta o assign do 1.3.4/1.4.4: aquecimento acaba e vai a live. Bots equilibrados mantidos. Remove mp_force_pick_time 0 (travava em 1s) e respawn experimental.",
+      "sha256": "d7f30af1c238fd094e882c4d5b77ca9339b52dcb3f3633e1b9b08b156082f9bd",
+      "size": 41984
+    },
+    {
+      "version": "1.4.9",
+      "publishedAt": "2026-09-23T21:56:14.386Z",
+      "changelogSummary": "Aquecimento: um unico ChangeTeam, sem Respawn em loop (prediction add/shutdown).",
+      "sha256": "052658b5787ee8ceff6116f6817cfa21206d368ceaa822b90a8b58bc611935b0",
+      "size": 41984
+    },
+    {
+      "version": "1.4.8",
+      "publishedAt": "2026-09-23T21:42:51.397Z",
+      "changelogSummary": "Aquecimento: respawn se estiveres morto (mp_respawn_on_death + revive). Bots ja equilibrados.",
+      "sha256": "c51228f929f4e8fe834bb456fdc747ff79fa552bfc20142d6e4a241fc301fd31",
+      "size": 43520
+    },
+    {
+      "version": "1.4.7",
+      "publishedAt": "2026-09-23T21:37:24.670Z",
+      "changelogSummary": "Bots equilibrados CT/T. Aquecimento: um unico respawn (ja nao ficas morto).",
+      "sha256": "86fcb27611d82ed11cfd29288e1c7e52e776cfe7f8dbe736c548bb6d6b79e034",
+      "size": 42496
+    },
+    {
+      "version": "1.4.6",
+      "publishedAt": "2026-09-23T21:31:40.295Z",
+      "changelogSummary": "Corrige spec no aquecimento (só SwitchTeam, sem ChangeTeam). Bots: quota exacta (normal + bot_add), não fill.",
+      "sha256": "a1375d5e87960635ae05d472b9077a615919afda354af347cb88ad81d441b0c0",
+      "size": 41984
+    },
+    {
+      "version": "1.4.5",
+      "publishedAt": "2026-09-23T21:24:45.478Z",
+      "changelogSummary": "Correção: jogador ficava spec no aquecimento (SfAssignTeams 1.3.6 — ChangeTeam+respawn). Bots no wizard (quota/dificuldade).",
+      "sha256": "ed1da94fc3dd9cae57716cab4f0ff3b45849f7426c6d7637ff3427e5b643fa15",
+      "size": 40448
+    },
+    {
+      "version": "1.4.4",
+      "publishedAt": "2026-09-22T01:29:39.590Z",
+      "changelogSummary": "Correção: aquecimento infinito no dedicated (SfAssignTeams 1.3.5 — deixa de reiniciar warmup a cada connect)",
+      "sha256": "3800cdf9d01f374da880fe995cb6ff4e45ad59bae960f62e5084c34d31b97890",
+      "size": 39424
+    },
+    {
+      "version": "1.4.3",
+      "publishedAt": "2026-09-17T02:54:24.439Z",
+      "changelogSummary": "Half CS2: deixa de forçar o time inicial após o warmup (SfAssignTeams 1.3.4)",
+      "sha256": "57378e5fb3dc78f95123f5318966a71069640d9479c3262771e151fb629e8e89",
+      "size": 39424
+    },
+    {
+      "version": "1.4.2",
+      "publishedAt": "2026-09-16T02:24:22.822Z",
+      "changelogSummary": "Anúncio de kill no chat (vermelho)",
+      "sha256": "1d183a43b040adcc5e78240d66ebfe9c35fd0b64fd71540f97dda2bb7ee7f8dd",
+      "size": 36864
+    },
+    {
+      "version": "1.4.1",
+      "publishedAt": "2026-09-16T02:02:40.337Z",
+      "changelogSummary": "Sons de kill a funcionar no dedicated",
+      "sha256": "1d183a43b040adcc5e78240d66ebfe9c35fd0b64fd71540f97dda2bb7ee7f8dd",
+      "size": 36864
+    },
+    {
+      "version": "1.4.0",
+      "publishedAt": "2026-09-16T00:34:21.048Z",
+      "changelogSummary": "Sons de kill Quake (host configura)",
+      "sha256": "1d183a43b040adcc5e78240d66ebfe9c35fd0b64fd71540f97dda2bb7ee7f8dd",
+      "size": 36864
+    },
+    {
+      "version": "1.3.1",
+      "publishedAt": "2026-09-16T00:00:17.680Z",
+      "changelogSummary": "Dinheiro extra por kill/vitória",
+      "sha256": "47b2882baaec588e5e165dc4dd44c074c22b1864c08fab48e2a7a4cbd87c36ed",
+      "size": 36864
+    }
+  ],
+  "updatedAt": "2026-09-23T23:25:52.784Z"
+}

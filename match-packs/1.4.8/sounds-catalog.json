@@ -1,0 +1,59 @@
+{
+  "workshopId": "3461824328",
+  "soundEventFile": "soundevents/soundevents_quakesounds.vsndevts",
+  "events": [
+    {
+      "key": "kill",
+      "label": "Kill",
+      "default": "QuakeSoundsD.Humiliation"
+    },
+    {
+      "key": "headshot",
+      "label": "Headshot",
+      "default": "QuakeSoundsD.Headshot"
+    },
+    {
+      "key": "firstBlood",
+      "label": "First Blood",
+      "default": "QuakeSoundsD.Firstblood"
+    },
+    {
+      "key": "knife",
+      "label": "Faca",
+      "default": "QuakeSoundsD.Haha"
+    },
+    {
+      "key": "doubleKill",
+      "label": "Double Kill",
+      "default": "QuakeSoundsD.Doublekill"
+    },
+    {
+      "key": "tripleKill",
+      "label": "Triple Kill",
+      "default": "QuakeSoundsD.Triplekill"
+    },
+    {
+      "key": "killstreak",
+      "label": "Killstreak",
+      "default": "QuakeSoundsD.Killingspree"
+    }
+  ],
+  "sounds": [
+    "QuakeSoundsD.Humiliation",
+    "QuakeSoundsD.Headshot",
+    "QuakeSoundsD.Firstblood",
+    "QuakeSoundsD.Haha",
+    "QuakeSoundsD.Doublekill",
+    "QuakeSoundsD.Triplekill",
+    "QuakeSoundsD.Killingspree",
+    "QuakeSoundsD.Multikill",
+    "QuakeSoundsD.Dominating",
+    "QuakeSoundsD.Rampage",
+    "QuakeSoundsD.Unstoppable",
+    "QuakeSoundsD.Godlike",
+    "QuakeSoundsD.Wickedsick",
+    "QuakeSoundsD.Holyshit",
+    "QuakeSoundsD.Impressive",
+    "QuakeSoundsD.Perfect"
+  ]
+}

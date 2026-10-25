@@ -1,0 +1,35 @@
+{
+  "version": "1.4.1",
+  "minDesktopVersion": "1.2.39",
+  "publishedAt": "2026-09-16T02:02:40.337Z",
+  "changelog": "Melhorias\n✅ Sons de kill a funcionar no dedicated\n✅ Workshop Quake ligado automaticamente",
+  "defaults": {
+    "mp_startmoney": 800,
+    "mp_maxmoney": 65000,
+    "mp_roundtime": 1.92,
+    "mp_freezetime": 15,
+    "mp_buytime": 20,
+    "mp_warmuptime": 60,
+    "cash_player_killed_enemy_default": 300,
+    "cash_team_winner_bonus": 4000,
+    "cash_team_loser_bonus": 1400,
+    "mp_afterroundmoney": 0,
+    "mp_limitteams": 0,
+    "mp_spectators": 1,
+    "mp_autoteambalance": 0
+  },
+  "dll": "SfAssignTeams.dll",
+  "files": [
+    "SfAssignTeams.dll",
+    "SfKillSounds.dll",
+    "sounds-catalog.json"
+  ],
+  "features": {
+    "killSounds": true
+  },
+  "workshopIds": [
+    "3461824328"
+  ],
+  "size": 36864,
+  "sha256": "1d183a43b040adcc5e78240d66ebfe9c35fd0b64fd71540f97dda2bb7ee7f8dd"
+}

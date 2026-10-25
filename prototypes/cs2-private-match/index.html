@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CS2 Partidas — mock canal no servidor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="is-desktop-app theme-contrast-light theme-ui-floating">
+  <aside class="storyboard" aria-label="Storyboard">
+    <div class="storyboard-brand">
+      <span class="brand-mark">SF</span>
+      <div>
+        <strong>Mock Partidas</strong>
+        <small>canal no servidor</small>
+      </div>
+    </div>
+    <p class="storyboard-hint">Partidas vive <b>dentro do servidor</b>, na lista de canais — não no rail junto dos servers.</p>
+
+    <div class="story-group">
+      <h3>Navegação</h3>
+      <button type="button" data-go="chat" data-ch="geral">Canal #geral</button>
+      <button type="button" data-go="voice" data-ch="lobby">Voz · Lobby</button>
+      <button type="button" data-go="hub" data-ch="partidas" class="is-active">Canal Partidas</button>
+    </div>
+    <div class="story-group">
+      <h3>Dentro de Partidas</h3>
+      <button type="button" data-go="hub" data-ch="partidas">Início</button>
+      <button type="button" data-go="create" data-ch="partidas">Criar</button>
+      <button type="button" data-go="lobby" data-ch="partidas">Lobby</button>
+      <button type="button" data-go="live" data-ch="partidas">Ao vivo</button>
+      <button type="button" data-go="host" data-ch="partidas">Host</button>
+      <button type="button" data-go="history" data-ch="partidas">Histórico</button>
+    </div>
+
+    <div class="storyboard-mode">
+      <span>Modo da sala</span>
+      <div class="mode-pills">
+        <button type="button" data-sim="valve" class="is-on">Valve</button>
+        <button type="button" data-sim="host_listen">PC host</button>
+        <button type="button" data-sim="vps">VPS</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="desktop-shell">
+    <header class="steam-top is-theme-float">
+      <div class="steam-top-brand">
+        <span class="logo-dot"></span>
+        <strong>SteamFarm</strong>
+        <span class="steam-top-sep">Comunidade</span>
+      </div>
+      <nav class="steam-top-nav">
+        <span class="is-on">Comunidade</span>
+        <span>YouTube</span>
+        <span>Perfil</span>
+      </nav>
+      <div class="steam-top-user">Alex · online</div>
+    </header>
+
+    <div class="comm-top-banners" id="banners" hidden>
+      <div class="pm-banner">
+        <span class="pm-live-dot"></span>
+        <strong>Partida em curso</strong>
+        <span id="bannerMeta">Scrim sexta · Mirage 8–7</span>
+        <button type="button" class="btn btn-sm btn-primary" data-go="live" data-ch="partidas">Ver ao vivo</button>
+      </div>
+    </div>
+
+    <div class="comm">
+      <!-- Rail = só servidores / hubs globais -->
+      <aside class="comm-rail is-theme-float">
+        <button type="button" class="comm-rail-btn" title="Mensagens diretas">DM</button>
+        <button type="button" class="comm-rail-btn" title="WhatsApp">WA</button>
+        <div class="rail-sep"></div>
+        <button type="button" class="comm-rail-btn is-server is-on" title="Castino Scrims">C</button>
+        <button type="button" class="comm-rail-btn is-server-alt" title="Amigos">A</button>
+        <button type="button" class="comm-rail-btn is-add" title="Adicionar servidor">+</button>
+        <div class="rail-sep"></div>
+        <button type="button" class="comm-rail-btn" title="YouTube">YT</button>
+      </aside>
+
+      <!-- Sidebar = canais DO servidor (texto, voz, partidas) -->
+      <aside class="comm-sidebar is-theme-float">
+        <div class="side-head">
+          <strong>Castino Scrims</strong>
+          <small>Servidor · 24 online</small>
+        </div>
+
+        <nav class="side-nav">
+          <div class="ch-category">
+            <span>Texto</span>
+          </div>
+          <button type="button" class="comm-ch" data-go="chat" data-ch="geral">
+            <span class="ch-icon">#</span>
+            <span class="ch-label">geral</span>
+          </button>
+          <button type="button" class="comm-ch" data-go="chat" data-ch="avisos">
+            <span class="ch-icon">#</span>
+            <span class="ch-label">avisos</span>
+          </button>
+
+          <div class="ch-category">
+            <span>Voz</span>
+          </div>
+          <button type="button" class="comm-ch" data-go="voice" data-ch="lobby">
+            <span class="ch-icon ch-icon-voice"></span>
+            <span class="ch-label">Lobby</span>
+            <span class="ch-count">3</span>
+          </button>
+          <button type="button" class="comm-ch" data-go="voice" data-ch="scrim">
+            <span class="ch-icon ch-icon-voice"></span>
+            <span class="ch-label">Scrim</span>
+          </button>
+
+          <div class="ch-category">
+            <span>Competitivo</span>
+          </div>
+          <button type="button" class="comm-ch is-feature" id="chPartidas" data-go="hub" data-ch="partidas">
+            <span class="ch-icon ch-icon-match"></span>
+            <span class="ch-label">Partidas</span>
+            <span class="ch-badge" id="chMatchBadge">LIVE</span>
+          </button>
+        </nav>
+
+        <div class="comm-userbar">
+          <div class="avatar">AL</div>
+          <div>
+            <strong>Alex</strong>
+            <small>Microfone ligado</small>
+          </div>
+        </div>
+      </aside>
+
+      <main class="comm-main is-theme-float">
+        <div class="main-bar" id="mainBar">
+          <div class="main-bar-left">
+            <span class="main-ch-icon" id="mainChIcon">#</span>
+            <div>
+              <p class="eyebrow" id="screenEyebrow">Canal</p>
+              <h1 id="screenTitle">geral</h1>
+            </div>
+          </div>
+          <div class="main-meta" id="mainMeta"></div>
+        </div>
+
+        <!-- Tabs só quando canal Partidas está ativo -->
+        <div class="match-tabs" id="matchTabs" hidden>
+          <button type="button" class="match-tab is-on" data-go="hub" data-ch="partidas">Início</button>
+          <button type="button" class="match-tab" data-go="lobby" data-ch="partidas">Lobby</button>
+          <button type="button" class="match-tab" data-go="live" data-ch="partidas">Ao vivo</button>
+          <button type="button" class="match-tab" data-go="host" data-ch="partidas">Host</button>
+          <button type="button" class="match-tab" data-go="history" data-ch="partidas">Histórico</button>
+          <button type="button" class="match-tab match-tab-cta" data-go="create" data-ch="partidas">+ Nova</button>
+        </div>
+
+        <div class="stage" id="stage"></div>
+      </main>
+
+      <aside class="comm-members is-theme-float">
+        <div class="members-head">
+          <strong id="membersTitle">Membros</strong>
+          <small id="membersSub">Castino Scrims</small>
+        </div>
+        <div id="membersBody"></div>
+      </aside>
+    </div>
+
+    <div class="comm-voice-float">
+      <div class="vf-dot"></div>
+      <div>
+        <strong>Lobby · voz</strong>
+        <small>ligado · flutuante</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="overlay" aria-hidden="true">
+    <div class="overlay-scrim" data-close-overlay></div>
+    <div class="modal" id="overlayBody" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

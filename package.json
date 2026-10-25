@@ -1,0 +1,29 @@
+{
+  "name": "openguild",
+  "version": "1.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "description": "Self-hosted Discord-style community: servers, text, voice, screen share, and a desktop app.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @steamfarm/shared && concurrently -n api,web -c blue,magenta \"npm run dev -w @steamfarm/api\" \"npm run dev -w @steamfarm/web\"",
+    "dev:api": "npm run dev -w @steamfarm/api",
+    "dev:web": "npm run dev -w @steamfarm/web",
+    "dev:desktop": "npm run start -w @steamfarm/desktop",
+    "dist:desktop": "npm run dist:publish -w @steamfarm/desktop",
+    "build": "npm run build -w @steamfarm/shared && npm run build -w @steamfarm/api && npm run build -w @steamfarm/web",
+    "db:generate": "npm run prisma:generate -w @steamfarm/api",
+    "db:migrate": "npm run prisma:migrate -w @steamfarm/api",
+    "db:push": "npm run prisma:push -w @steamfarm/api",
+    "dev:wa": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start_wa_gateway.ps1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "allowScripts": {
+    "electron@35.7.5": true
+  }
+}

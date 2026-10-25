@@ -1,0 +1,51 @@
+{
+  "name": "@steamfarm/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.12",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.0.12",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.12",
+    "@nestjs/platform-socket.io": "^11.0.12",
+    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/websockets": "^11.0.12",
+    "@prisma/client": "^6.5.0",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "@steamfarm/shared": "*",
+    "bcryptjs": "^3.0.2",
+    "bullmq": "^5.44.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "cookie-parser": "^1.4.7",
+    "helmet": "^8.3.0",
+    "ioredis": "^5.6.0",
+    "livekit-server-sdk": "^2.10.2",
+    "multer": "^1.4.5-lts.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.5",
+    "@nestjs/schematics": "^11.0.2",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.1",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.13.10",
+    "prisma": "^6.5.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  }
+}

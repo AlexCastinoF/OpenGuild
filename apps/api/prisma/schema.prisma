@@ -1,0 +1,422 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int     @id @default(autoincrement())
+  username     String  @unique
+  passwordHash String  @map("password_hash")
+  role         String
+  displayName  String  @default("") @map("display_name")
+  avatarUrl    String  @default("") @map("avatar_url")
+  ramal                 String  @default("")
+  workStatus            String  @default("") @map("work_status")
+  workStatusChangedAt   Float   @default(0) @map("work_status_changed_at")
+  steamId64             String  @default("") @map("steam_id64")
+  steamPersona          String  @default("") @map("steam_persona")
+  steamAvatar           String  @default("") @map("steam_avatar")
+  steamTradeUrl         String  @default("") @map("steam_trade_url")
+  steamLinkedAt         Float   @default(0) @map("steam_linked_at")
+  showcaseItems         Json    @default("[]") @map("showcase_items")
+  premiumThemes         Boolean @default(false) @map("premium_themes")
+  isDisabled            Boolean @default(false) @map("is_disabled")
+  rustdeskId            String  @default("") @map("rustdesk_id")
+  rustdeskSeenAt        Float   @default(0) @map("rustdesk_seen_at")
+  cs2MatchAuthEnc       String  @default("") @map("cs2_match_auth_enc") @db.Text
+  cs2MatchKnownCode     String  @default("") @map("cs2_match_known_code") @db.VarChar(128)
+  cs2MatchAuthAt        Float   @default(0) @map("cs2_match_auth_at")
+  cs2AutoEnrich         Boolean @default(true) @map("cs2_auto_enrich")
+  cs2LastAutoEnrichAt   Float   @default(0) @map("cs2_last_auto_enrich_at")
+  /// Incrementa ao trocar a senha: tokens JWT com `tv` antigo deixam de valer
+  tokenVersion          Int     @default(0) @map("token_version")
+  createdAt             Float   @map("created_at")
+
+  ownedServers   CommunityServer[]      @relation("ServerOwner")
+  memberships    CommunityMember[]
+  messages       CommunityMessage[]
+  invitesCreated CommunityInvite[]      @relation("InviteCreator")
+  joinRequests   CommunityJoinRequest[] @relation("JoinRequester")
+  handledJoins   CommunityJoinRequest[] @relation("JoinHandler")
+  dmSent         CommunityDmMessage[]   @relation("DmFrom")
+  dmReceived     CommunityDmMessage[]   @relation("DmTo")
+  memberRoles    CommunityMemberRole[]
+  tradesProposed CommunityTrade[]       @relation("TradeProposer")
+  tradesPartner  CommunityTrade[]       @relation("TradePartner")
+  tradesSender   CommunityTrade[]       @relation("TradeSender")
+  streamAccounts UserStreamAccount[]
+  waSessions     UserWaSession[]
+  whatsapp       UserWhatsApp?
+  theme          UserTheme?
+  remoteRequested RemoteAccessSession[] @relation("RemoteRequester")
+  remoteTargeted  RemoteAccessSession[] @relation("RemoteTarget")
+  cs2MatchShares Cs2MatchShare[]
+  privateMatchRating PrivateMatchRating?
+  privateMatchMapStats PrivateMatchMapStat[]
+
+  @@index([steamId64])
+  @@map("users")
+}
+
+model PrivateMatchRating {
+  userId    Int   @id @map("user_id")
+  rating    Int   @default(0)
+  updatedAt Float @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("private_match_ratings")
+}
+
+model PrivateMatchMapStat {
+  id        Int    @id @default(autoincrement())
+  userId    Int    @map("user_id")
+  map       String @db.VarChar(64)
+  wins      Int    @default(0)
+  losses    Int    @default(0)
+  updatedAt Float  @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, map], map: "uq_pm_map_stat_user_map")
+  @@index([userId])
+  @@map("private_match_map_stats")
+}
+
+model Cs2MatchShare {
+  id        Int    @id @default(autoincrement())
+  userId    Int    @map("user_id")
+  shareCode String @map("share_code") @db.VarChar(128)
+  fetchedAt Float  @map("fetched_at")
+  meta      Json   @default("{}")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, shareCode], map: "uq_cs2_share_user_code")
+  @@index([userId])
+  @@index([shareCode])
+  @@map("cs2_match_shares")
+}
+
+model SiteSettings {
+  id               Int     @id @default(1)
+  registerEnabled  Boolean @default(true) @map("register_enabled")
+  registerMaxPerIp Int     @default(10) @map("register_max_per_ip")
+  pabxApiBase      String  @default("") @map("pabx_api_base")
+  pabxUsuario      String  @default("") @map("pabx_usuario")
+  pabxToken        String  @default("") @map("pabx_token")
+  brandName        String  @default("SteamFarm Comunidade") @map("brand_name")
+  brandShortName   String  @default("SteamFarm") @map("brand_short_name")
+  brandLogoUrl     String  @default("") @map("brand_logo_url")
+  brandFaviconUrl  String  @default("") @map("brand_favicon_url")
+  brandAppIconUrl  String  @default("") @map("brand_app_icon_url")
+  brandAppIcoUrl      String  @default("") @map("brand_app_ico_url")
+  brandRevision       Int     @default(1) @map("brand_revision")
+  steamWebApiKeyEnc   String  @default("") @map("steam_web_api_key_enc") @db.Text
+  updatedAt           Float   @map("updated_at")
+
+  @@map("site_settings")
+}
+
+model CommunityServer {
+  id          Int     @id @default(autoincrement())
+  name        String
+  ownerUserId Int     @map("owner_user_id")
+  iconUrl     String  @default("") @map("icon_url")
+  bannerUrl   String  @default("") @map("banner_url")
+  description String  @default("")
+  isListed    Boolean @default(false) @map("is_listed")
+  isBlocked   Boolean @default(false) @map("is_blocked")
+  createdAt   Float   @map("created_at")
+
+  owner        User                   @relation("ServerOwner", fields: [ownerUserId], references: [id])
+  members      CommunityMember[]
+  channels     CommunityChannel[]
+  roles        CommunityRole[]
+  memberRoles  CommunityMemberRole[]
+  invites      CommunityInvite[]
+  joinRequests CommunityJoinRequest[]
+  dmMessages   CommunityDmMessage[]
+
+  @@map("community_servers")
+}
+
+model CommunityMember {
+  id       Int    @id @default(autoincrement())
+  serverId Int    @map("server_id")
+  userId   Int    @map("user_id")
+  role     String @default("member")
+  joinedAt Float  @map("joined_at")
+
+  server CommunityServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId])
+  @@map("community_members")
+}
+
+model CommunityRole {
+  id              Int      @id @default(autoincrement())
+  serverId        Int      @map("server_id")
+  name            String
+  color           String   @default("#949ba4")
+  position        Int      @default(0)
+  hoist           Boolean  @default(false)
+  memberCardColor String?  @map("member_card_color")
+  borderColor     String?  @map("border_color")
+  borderEffect    String   @default("solid") @map("border_effect")
+  borderMotion    String   @default("none") @map("border_motion")
+  permissions     Json
+  isDefault       Boolean  @default(false) @map("is_default")
+  createdAt       Float    @map("created_at")
+
+  server      CommunityServer       @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  memberRoles CommunityMemberRole[]
+
+  @@map("community_roles")
+}
+
+model CommunityMemberRole {
+  id         Int   @id @default(autoincrement())
+  serverId   Int   @map("server_id")
+  userId     Int   @map("user_id")
+  roleId     Int   @map("role_id")
+  assignedAt Float @map("assigned_at")
+
+  server CommunityServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   CommunityRole   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId, roleId])
+  @@map("community_member_roles")
+}
+
+model CommunityInvite {
+  id        Int    @id @default(autoincrement())
+  serverId  Int    @map("server_id")
+  code      String @unique
+  createdBy Int    @map("created_by")
+  createdAt Float  @map("created_at")
+  expiresAt Float  @default(0) @map("expires_at")
+  maxUses   Int    @default(0) @map("max_uses")
+  uses      Int    @default(0)
+
+  server  CommunityServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  creator User            @relation("InviteCreator", fields: [createdBy], references: [id])
+
+  @@map("community_invites")
+}
+
+model CommunityChannel {
+  id        Int    @id @default(autoincrement())
+  serverId  Int    @map("server_id")
+  name      String
+  kind      String @default("text")
+  iconUrl   String @default("") @map("icon_url")
+  position  Int    @default(0)
+  createdAt Float  @map("created_at")
+
+  server   CommunityServer    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  messages CommunityMessage[]
+
+  @@map("community_channels")
+}
+
+model CommunityMessage {
+  id        Int    @id @default(autoincrement())
+  channelId Int    @map("channel_id")
+  userId    Int    @map("user_id")
+  body      String
+  createdAt Float  @map("created_at")
+
+  channel CommunityChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, id])
+  @@index([createdAt])
+  @@map("community_messages")
+}
+
+model CommunityJoinRequest {
+  id        Int    @id @default(autoincrement())
+  serverId  Int    @map("server_id")
+  userId    Int    @map("user_id")
+  message   String @default("")
+  status    String @default("pending")
+  createdAt Float  @map("created_at")
+  handledBy Int?   @map("handled_by")
+  handledAt Float? @map("handled_at")
+
+  server  CommunityServer      @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user    User                 @relation("JoinRequester", fields: [userId], references: [id], onDelete: Cascade)
+  handler User?                @relation("JoinHandler", fields: [handledBy], references: [id])
+  dms     CommunityDmMessage[]
+
+  @@map("community_join_requests")
+}
+
+model CommunityDmMessage {
+  id            Int    @id @default(autoincrement())
+  fromUserId    Int    @map("from_user_id")
+  toUserId      Int    @map("to_user_id")
+  serverId      Int?   @map("server_id")
+  joinRequestId Int?   @map("join_request_id")
+  body          String
+  createdAt     Float  @map("created_at")
+  readAt        Float? @map("read_at")
+
+  from        User                  @relation("DmFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  to          User                  @relation("DmTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  server      CommunityServer?      @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  joinRequest CommunityJoinRequest? @relation(fields: [joinRequestId], references: [id], onDelete: SetNull)
+
+  @@map("community_dm_messages")
+}
+
+/** Sessão de compartilhamento com link público /assistir/<slug> */
+model CommunityLiveSession {
+  id                        Int     @id @default(autoincrement())
+  serverId                  Int     @map("server_id")
+  channelId                 Int     @map("channel_id")
+  userId                    Int     @map("user_id")
+  title                     String  @default("")
+  status                    String  @default("starting")
+  livekitRoom               String  @default("") @map("livekit_room")
+  livekitEgressId           String  @default("") @map("livekit_egress_id")
+  chatMeta                  Json    @default("{}") @map("chat_meta")
+  watchSlug                 String  @default("") @map("watch_slug")
+  publicWatchEnabled        Boolean @default(false) @map("public_watch_enabled")
+  publicWatchMax            Int     @default(50) @map("public_watch_max")
+  publicWatchCustomNames    Boolean @default(true) @map("public_watch_custom_names")
+  publicWatchChatEnabled    Boolean @default(false) @map("public_watch_chat_enabled")
+  publicWatchChatGuestPost  Boolean @default(false) @map("public_watch_chat_guest_post")
+  startedAt                 Float   @map("started_at")
+  endedAt                   Float?  @map("ended_at")
+
+  @@index([watchSlug])
+  @@index([userId, status])
+  @@index([serverId, status])
+  @@map("community_live_sessions")
+}
+
+model CommunityTrade {
+  id                Int     @id @default(autoincrement())
+  proposerUserId    Int     @map("proposer_user_id")
+  partnerUserId     Int     @map("partner_user_id")
+  status            String  @default("proposed")
+  message           String  @default("")
+  proposerItems     Json    @default("[]") @map("proposer_items")
+  partnerItems      Json    @default("[]") @map("partner_items")
+  proposerAccepted  Boolean @default(false) @map("proposer_accepted")
+  partnerAccepted   Boolean @default(false) @map("partner_accepted")
+  senderUserId      Int?    @map("sender_user_id")
+  steamTradeofferid String  @default("") @map("steam_tradeofferid")
+  steamOfferUrl     String  @default("") @map("steam_offer_url")
+  steamError        String  @default("") @map("steam_error")
+  createdAt         Float   @map("created_at")
+  updatedAt         Float   @map("updated_at")
+  completedAt       Float?  @map("completed_at")
+
+  proposer User  @relation("TradeProposer", fields: [proposerUserId], references: [id], onDelete: Cascade)
+  partner  User  @relation("TradePartner", fields: [partnerUserId], references: [id], onDelete: Cascade)
+  sender   User? @relation("TradeSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+
+  @@index([proposerUserId])
+  @@index([partnerUserId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("community_trades")
+}
+
+model UserStreamAccount {
+  userId           Int    @map("user_id")
+  provider         String @db.VarChar(16)
+  providerUserId   String @default("") @map("provider_user_id") @db.VarChar(64)
+  login            String @default("") @db.VarChar(128)
+  displayName      String @default("") @map("display_name") @db.VarChar(128)
+  avatarUrl        String @default("") @map("avatar_url") @db.Text
+  accessTokenEnc   String @default("") @map("access_token_enc") @db.Text
+  refreshTokenEnc  String @default("") @map("refresh_token_enc") @db.Text
+  streamKeyEnc     String @default("") @map("stream_key_enc") @db.Text
+  scopes           String @default("") @db.Text
+  linkedAt         Float  @default(0) @map("linked_at")
+  expiresAt        Float  @default(0) @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, provider])
+  @@map("user_stream_accounts")
+}
+
+model UserWaSession {
+  id             Int    @id @default(autoincrement())
+  userId         Int    @map("user_id")
+  slot           Int    @default(1)
+  sessionId      String @unique @map("session_id") @db.VarChar(64)
+  meJid          String @default("") @map("me_jid") @db.VarChar(128)
+  pushName       String @default("") @map("push_name") @db.VarChar(128)
+  status         String @default("idle") @db.VarChar(32)
+  cryptoSalt     String @default("") @map("crypto_salt") @db.Text
+  cryptoVerifier String @default("") @map("crypto_verifier") @db.Text
+  archivedGroups Json   @default("[]") @map("archived_groups")
+  createdAt      Float  @map("created_at")
+  updatedAt      Float  @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slot])
+  @@index([userId])
+  @@map("user_wa_sessions")
+}
+
+model UserWhatsApp {
+  userId  Int     @id @map("user_id")
+  phone   String  @default("") @db.VarChar(32)
+  enabled Boolean @default(false)
+  events  Json    @default("{}")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_whatsapp")
+}
+
+/** Temas premium por superfície (rail, sidebar, chat, stage, members). */
+model UserTheme {
+  userId    Int   @id @map("user_id")
+  surfaces  Json  @default("{}")
+  updatedAt Float @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_themes")
+}
+
+/** Sessões de acesso remoto (RustDesk) — consentimento via app. */
+model RemoteAccessSession {
+  id                 String @id @default(cuid())
+  serverId           Int    @map("server_id")
+  requesterId        Int    @map("requester_id")
+  targetId           Int    @map("target_id")
+  /** control_target = requester controla o alvo; invite_helper = alvo controla o requester */
+  direction          String
+  status             String @default("pending")
+  hostUserId         Int    @default(0) @map("host_user_id")
+  controllerUserId   Int    @default(0) @map("controller_user_id")
+  hostRustdeskId     String @default("") @map("host_rustdesk_id")
+  sessionPasswordEnc String @default("") @map("session_password_enc")
+  expiresAt          Float  @map("expires_at")
+  createdAt          Float  @map("created_at")
+  updatedAt          Float  @map("updated_at")
+
+  requester User @relation("RemoteRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    User @relation("RemoteTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId, status])
+  @@index([targetId, status])
+  @@index([status, expiresAt])
+  @@map("remote_access_sessions")
+}

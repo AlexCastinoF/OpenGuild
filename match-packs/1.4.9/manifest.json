@@ -1,0 +1,35 @@
+{
+  "version": "1.4.9",
+  "minDesktopVersion": "1.2.39",
+  "publishedAt": "2026-09-23T21:56:14.386Z",
+  "changelog": "Aquecimento: um unico ChangeTeam, sem Respawn em loop (prediction add/shutdown).",
+  "defaults": {
+    "mp_startmoney": 800,
+    "mp_maxmoney": 65000,
+    "mp_roundtime": 1.92,
+    "mp_freezetime": 15,
+    "mp_buytime": 20,
+    "mp_warmuptime": 60,
+    "cash_player_killed_enemy_default": 300,
+    "cash_team_winner_bonus": 4000,
+    "cash_team_loser_bonus": 1400,
+    "mp_afterroundmoney": 0,
+    "mp_limitteams": 0,
+    "mp_spectators": 1,
+    "mp_autoteambalance": 0
+  },
+  "dll": "SfAssignTeams.dll",
+  "files": [
+    "SfAssignTeams.dll",
+    "SfKillSounds.dll",
+    "sounds-catalog.json"
+  ],
+  "features": {
+    "killSounds": true
+  },
+  "workshopIds": [
+    "3461824328"
+  ],
+  "size": 41984,
+  "sha256": "052658b5787ee8ceff6116f6817cfa21206d368ceaa822b90a8b58bc611935b0"
+}

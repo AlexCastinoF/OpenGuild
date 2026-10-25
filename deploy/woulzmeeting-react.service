@@ -1,0 +1,20 @@
+[Unit]
+Description=WOULZ Meeting React — API NestJS
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=woulzmeetingreact
+Group=woulzmeetingreact
+WorkingDirectory=/opt/woulzmeeting-react/apps/api
+EnvironmentFile=-/opt/woulzmeeting-react/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /opt/woulzmeeting-react/apps/api/dist/main.js
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

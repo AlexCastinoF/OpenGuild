@@ -1,0 +1,107 @@
+{
+  "name": "@steamfarm/desktop",
+  "version": "1.2.43",
+  "description": "SteamFarm Comunidade — app desktop",
+  "main": "main.js",
+  "author": "SteamFarm",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build:cs2-plugin": "node scripts/build-cs2-plugin.js",
+    "publish:match-pack": "node scripts/publish-match-pack.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win portable",
+    "dist:exe": "node scripts/ensure-rustdesk.js && electron-builder --win nsis",
+    "dist:publish": "node scripts/ensure-rustdesk.js && electron-builder --win nsis && node scripts/copy-desktop-release.js",
+    "postinstall": "node scripts/ensure-ffmpeg.js && node scripts/rebuild-loopback.js && node scripts/ensure-rustdesk.js"
+  },
+  "build": {
+    "appId": "app.openguild.desktop",
+    "productName": "SteamFarm Comunidade",
+    "electronVersion": "35.7.5",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "afterPack": "./scripts/after-pack.js",
+    "asarUnpack": [
+      "node_modules/loopback-capture/build/Release/*.node"
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "local-stream.js",
+      "game-audio-capture.js",
+      "remote-rustdesk.js",
+      "match-connect.js",
+      "match-server-mods.js",
+      "match-packs.js",
+      "match-tunnel.js",
+      "match-upnp.js",
+      "match-history.js",
+      "match-inject.ps1",
+      "cs2-gsi.js",
+      "cs2-gsi-history.js",
+      "resources/cs2-plugin/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json",
+      "node_modules/application-loopback/**/*",
+      "node_modules/loopback-capture/build/Release/*.node",
+      "node_modules/loopback-capture/dist/**/*",
+      "node_modules/loopback-capture/package.json",
+      "node_modules/bindings/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/ffmpeg/ffmpeg.exe",
+        "to": "ffmpeg/ffmpeg.exe"
+      },
+      {
+        "from": "resources/rustdesk/rustdesk.exe",
+        "to": "rustdesk/rustdesk.exe"
+      },
+      {
+        "from": "../../node_modules/application-loopback/bin",
+        "to": "application-loopback/bin"
+      }
+    ],
+    "icon": "assets/icon.ico",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://chat.example.com/desktop/"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "SteamFarm-Comunidade-${version}-${arch}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "SteamFarm Comunidade",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
+    }
+  },
+  "dependencies": {
+    "application-loopback": "^1.2.7",
+    "electron-updater": "^6.8.9",
+    "ffmpeg-static": "^5.3.0",
+    "loopback-capture": "^2.0.0"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "rcedit": "^5.0.2"
+  }
+}
