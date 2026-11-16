@@ -67,8 +67,8 @@ export function AdminPage() {
   const [userQ, setUserQ] = useState('');
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
-  const [brandName, setBrandName] = useState('SteamFarm Comunidade');
-  const [brandShort, setBrandShort] = useState('SteamFarm');
+  const [brandName, setBrandName] = useState('RallyDesk');
+  const [brandShort, setBrandShort] = useState('RallyDesk');
   const [brandLogo, setBrandLogo] = useState('');
   const [brandFavicon, setBrandFavicon] = useState('');
   const [brandAppIcon, setBrandAppIcon] = useState('');

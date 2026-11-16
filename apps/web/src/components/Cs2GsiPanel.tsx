@@ -480,7 +480,7 @@ export function Cs2GsiSettingsPanel() {
       <section className="comm-profile-edit-section">
         <h3 className="comm-profile-edit-section-title">Partidas CS2 ao vivo (GSI)</h3>
         <p className="muted">
-          O placar em tempo real precisa do <strong>app Desktop</strong> SteamFarm Comunidade neste
+          O placar em tempo real precisa do <strong>app Desktop</strong> RallyDesk neste
           PC.
         </p>
         <Cs2ValveAuthPanel />

@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Custom Context Menu - OpenGuild / RallyDesk
+   ========================================================================== */
+
+.comm-context-menu {
+  position: fixed;
+  z-index: 999999;
+  min-width: 220px;
+  max-width: 280px;
+  background: var(--side, #0d182b);
+  background-color: rgba(13, 24, 43, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: comm-context-pop 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top left;
+  user-select: none;
+}
+
+@keyframes comm-context-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.comm-context-menu-header {
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted, #8ea2c0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comm-context-menu-header svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.comm-context-menu-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comm-context-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 2px;
+}
+
+.comm-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text, #e8eef9);
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, color 0.12s ease;
+  outline: none;
+}
+
+.comm-context-menu-item svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.comm-context-menu-item:hover,
+.comm-context-menu-item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.comm-context-menu-item:hover svg,
+.comm-context-menu-item:focus-visible svg {
+  opacity: 1;
+}
+
+.comm-context-menu-item.comm-context-danger {
+  color: var(--comm-danger, #ff5252);
+}
+
+.comm-context-menu-item.comm-context-danger svg {
+  color: var(--comm-danger, #ff5252);
+}
+
+.comm-context-menu-item.comm-context-danger:hover,
+.comm-context-menu-item.comm-context-danger:focus-visible {
+  background: rgba(255, 82, 82, 0.16);
+  color: #ff6b6b;
+}
+
+.comm-context-menu-item.comm-context-primary {
+  color: var(--accent, #ff9a3d);
+}
+
+.comm-context-menu-item.comm-context-primary:hover,
+.comm-context-menu-item.comm-context-primary:focus-visible {
+  background: rgba(255, 154, 61, 0.16);
+}

@@ -4,6 +4,7 @@ import {
   noiseEngineLabel,
   type NoiseEngine,
 } from '../lib/deepFilterMic';
+import { CustomSelect, CustomSelectOption } from './CustomSelect';
 
 export type { NoiseEngine };
 export type AudioDevicePrefs = {
@@ -298,50 +299,44 @@ export function VoiceFilterControls({
         AEC ligados no cliente com microfone aberto junto das colunas.
       </p>
 
-      <label className="sf-voice-filter-field">
-        Supressão de ruído
-        <select
+      <div className="sf-voice-filter-field">
+        <span>Supressão de ruído</span>
+        <CustomSelect
           value={engine}
-          onChange={(e) => onEngineChange(e.target.value as NoiseEngine)}
-        >
-          <option value="off">Desligada</option>
-          <option value="browser">Browser (WebRTC NS)</option>
-          {desktop ? (
-            <>
-              <option value="deepfilter">DeepFilterNet (IA)</option>
-              <option value="rnnoise">RNNoise</option>
-              <option value="dtln">DTLN</option>
-              <option value="krisp">Krisp (IA · recomendado)</option>
-            </>
-          ) : (
-            <>
-              <option value="deepfilter" disabled>
-                DeepFilterNet (navegador sem AudioWorklet)
-              </option>
-              <option value="rnnoise" disabled>
-                RNNoise (navegador sem AudioWorklet)
-              </option>
-              <option value="dtln" disabled>
-                DTLN (navegador sem AudioWorklet)
-              </option>
-              <option value="krisp" disabled>
-                Krisp (navegador sem AudioWorklet)
-              </option>
-            </>
-          )}
-        </select>
-      </label>
+          options={[
+            { value: 'off', label: 'Desligada' },
+            { value: 'browser', label: 'Browser (WebRTC NS)' },
+            ...(desktop
+              ? [
+                  { value: 'deepfilter', label: 'DeepFilterNet (IA)' },
+                  { value: 'rnnoise', label: 'RNNoise' },
+                  { value: 'dtln', label: 'DTLN' },
+                  { value: 'krisp', label: 'Krisp (IA · recomendado)' },
+                ]
+              : [
+                  { value: 'deepfilter', label: 'DeepFilterNet (navegador sem AudioWorklet)', disabled: true },
+                  { value: 'rnnoise', label: 'RNNoise (navegador sem AudioWorklet)', disabled: true },
+                  { value: 'dtln', label: 'DTLN (navegador sem AudioWorklet)', disabled: true },
+                  { value: 'krisp', label: 'Krisp (navegador sem AudioWorklet)', disabled: true },
+                ]),
+          ]}
+          onChange={(val) => onEngineChange(val as NoiseEngine)}
+          aria-label="Supressão de ruído"
+        />
+      </div>
 
-      <label className="sf-voice-filter-field">
-        Cancelamento de eco (AEC WebRTC)
-        <select
+      <div className="sf-voice-filter-field">
+        <span>Cancelamento de eco (AEC WebRTC)</span>
+        <CustomSelect
           value={echoCancellation ? 'webrtc' : 'off'}
-          onChange={(e) => onEchoChange(e.target.value === 'webrtc')}
-        >
-          <option value="webrtc">WebRTC AEC (ajuda no browser; fraco no Desktop)</option>
-          <option value="off">Desligado</option>
-        </select>
-      </label>
+          options={[
+            { value: 'webrtc', label: 'WebRTC AEC (ajuda no browser; fraco no Desktop)' },
+            { value: 'off', label: 'Desligado' },
+          ]}
+          onChange={(val) => onEchoChange(val === 'webrtc')}
+          aria-label="Cancelamento de eco (AEC WebRTC)"
+        />
+      </div>
       <p className="comm-dialog-hint">
         Eco de altifalante no Desktop: deixa <strong>Krisp</strong> ligado (BVC). O AEC WebRTC sozinho não
         chega — o Discord também não depende só dele.
@@ -457,28 +452,38 @@ export function AudioSettingsDialog({
     <dialog className="comm-dialog" open>
       <div className="comm-dialog-form">
         <h2>Áudio e voz</h2>
-        <label>
-          Microfone
-          <select value={micId} onChange={(e) => setMicId(e.target.value)}>
-            <option value="">Padrão do sistema</option>
-            {mics.map((d) => (
-              <option key={d.deviceId} value={d.deviceId}>
-                {d.label || `Mic ${d.deviceId.slice(0, 6)}`}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Saída (alto-falante)
-          <select value={speakerId} onChange={(e) => setSpeakerId(e.target.value)}>
-            <option value="">Padrão do sistema</option>
-            {speakers.map((d) => (
-              <option key={d.deviceId} value={d.deviceId}>
-                {d.label || `Out ${d.deviceId.slice(0, 6)}`}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="device-select-card" style={{ marginBottom: 12 }}>
+          <label id="dialog-select-mic-label">Microfone</label>
+          <CustomSelect
+            aria-label="Microfone"
+            value={micId}
+            placeholder="Padrão do sistema"
+            options={[
+              { value: '', label: 'Padrão do sistema' },
+              ...mics.map((d) => ({
+                value: d.deviceId,
+                label: d.label || `Mic ${d.deviceId.slice(0, 6)}`,
+              })),
+            ]}
+            onChange={setMicId}
+          />
+        </div>
+        <div className="device-select-card" style={{ marginBottom: 12 }}>
+          <label id="dialog-select-speaker-label">Saída (alto-falante)</label>
+          <CustomSelect
+            aria-label="Saída (alto-falante)"
+            value={speakerId}
+            placeholder="Padrão do sistema"
+            options={[
+              { value: '', label: 'Padrão do sistema' },
+              ...speakers.map((d) => ({
+                value: d.deviceId,
+                label: d.label || `Out ${d.deviceId.slice(0, 6)}`,
+              })),
+            ]}
+            onChange={setSpeakerId}
+          />
+        </div>
 
         <VoiceFilterControls
           micId={micId}

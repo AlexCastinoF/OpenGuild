@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { PERMISSION_GROUPS } from '@steamfarm/shared';
 import { api } from '../lib/api';
+import { CustomSelect } from './CustomSelect';
 
 type Role = {
   id: number;
@@ -204,19 +205,20 @@ export function RolesDialog({
           </div>
         ) : (
           <form onSubmit={(e) => void saveAssign(e)}>
-            <label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               Membro
-              <select
-                value={assignUserId}
-                onChange={(e) => setAssignUserId(e.target.value ? Number(e.target.value) : '')}
-              >
-                <option value="">—</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                value={assignUserId ? String(assignUserId) : ''}
+                onChange={(val) => setAssignUserId(val ? Number(val) : '')}
+                options={[
+                  { value: '', label: '—' },
+                  ...members.map((m) => ({
+                    value: String(m.id),
+                    label: m.label,
+                  })),
+                ]}
+                placeholder="Selecione um membro…"
+              />
             </label>
             <div style={{ marginTop: 8 }}>
               {roles

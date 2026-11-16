@@ -1,7 +1,10 @@
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { DiscoverView } from '../components/DiscoverView';
+import { ChannelContextMenu, ChannelContextMenuData } from '../components/ChannelContextMenu';
 import {
+  Activity,
   ArrowLeftRight,
   AudioLines,
   ChevronDown,
@@ -30,14 +33,13 @@ import {
   Send,
   Settings,
   Shield,
-  Table2,
   Trash2,
   UserCheck,
   UserPlus,
   UserRoundCog,
   Users,
   Volume2,
-  Palette,
+  Pin,
   CirclePlay,
 } from 'lucide-react';
 import { WORK_STATUS_OPTIONS, type AuthUser, type MessageDto, type ServerSummary, userIdFromIdentity } from '@steamfarm/shared';
@@ -57,6 +59,7 @@ import {
   resetScreenShareNotified,
   setViewingThread,
 } from '../lib/commNotify';
+import { playVoiceJoinChime } from '../lib/voiceJoinChime';
 import { useAuthStore } from '../store/auth';
 import { useBrandStore } from '../store/brand';
 import {
@@ -92,12 +95,18 @@ import { useRemoteAccess } from '../lib/remoteAccess';
 import { usePrivateMatch } from '../lib/privateMatch';
 import { VoiceStage } from '../components/VoiceStage';
 import { VoiceDebugBalloon } from '../components/VoiceDebugBalloon';
+import { VoiceTelemetryPanel } from '../components/VoiceTelemetryPanel';
 import { useVoiceSession } from '../voice/VoiceSessionContext';
 import {
   ThemeSettingsDialog,
   applyThemeState,
   type ThemeState,
 } from '../components/ThemeSettingsDialog';
+import { UserSettingsDialog, UserSettingsTab } from '../components/UserSettingsDialog';
+import { MemberCardPopover } from '../components/MemberCardPopover';
+import { useAppearance } from '../hooks/useAppearance';
+import { applyAppearance } from '../lib/appearance';
+import { RallyCard } from '../components/RallyCard';
 import { MembersManageDialog } from '../components/MembersManageDialog';
 import {
   SteamSetupDialog,
@@ -425,10 +434,12 @@ export function CommunityPage() {
   const serverId = sidParam ? Number(sidParam) : null;
   const channelId = cidParam ? Number(cidParam) : null;
   const nav = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const brandName = useBrandStore((s) => s.name);
+  const openAppearance = useAppearance((s) => s.open);
   const remote = useRemoteAccess({
     userId: user?.id,
     serverId: serverId || undefined,
@@ -439,6 +450,7 @@ export function CommunityPage() {
     serverId: serverId || undefined,
     enabled: !!user,
   });
+  const [telemetryOpen, setTelemetryOpen] = useState(false);
   const [matchCreateOpen, setMatchCreateOpen] = useState(false);
   const [matchConsoleKeyOpen, setMatchConsoleKeyOpen] = useState(false);
   const cs2Gsi = useCs2Gsi();
@@ -457,7 +469,19 @@ export function CommunityPage() {
     return ids;
   }, [privateMatch.serverRooms, privateMatch.active?.voiceChannels]);
 
-  const [view, setView] = useState<'empty' | 'chat' | 'voice' | 'dm' | 'match'>('empty');
+  const [view, setView] = useState<'empty' | 'chat' | 'voice' | 'dm' | 'match' | 'discover'>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/descobrir') {
+      return 'discover';
+    }
+    return 'empty';
+  });
+
+  useEffect(() => {
+    if (location.pathname === '/descobrir') {
+      setIsWaHub(false);
+      setView('discover');
+    }
+  }, [location.pathname]);
 
   const [partidasSteamGateOpen, setPartidasSteamGateOpen] = useState(false);
   const [partidasLobbyFocus, setPartidasLobbyFocus] = useState(0);
@@ -521,6 +545,16 @@ export function CommunityPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [publicWatch, setPublicWatch] = useState<{ url: string; sessionId: number } | null>(null);
   const [channelEdit, setChannelEdit] = useState<Channel | null>(null);
+  const [channelContextMenu, setChannelContextMenu] = useState<ChannelContextMenuData | null>(null);
+  const [userSettingsOpen, setUserSettingsOpen] = useState(false);
+  const [userSettingsTab, setUserSettingsTab] = useState<UserSettingsTab>('appearance');
+  const [popoverMember, setPopoverMember] = useState<{
+    member: Member;
+    rect: DOMRect | null;
+    isOnline: boolean;
+    activity: string;
+  } | null>(null);
+  const popoverTimeoutRef = useRef<number | null>(null);
   const [memberProfile, setMemberProfile] = useState<Member | null>(null);
   const [membersManageOpen, setMembersManageOpen] = useState(false);
   const {
@@ -661,11 +695,13 @@ export function CommunityPage() {
     api<{ user: AuthUser | null; needs_setup?: boolean }>('/api/auth/status')
       .then((s) => {
         if (s.needs_setup) nav('/setup');
-        else if (!s.user) nav('/login');
-        else setUser(s.user);
+        else if (s.user) setUser(s.user);
+        else if (!user) nav('/login');
       })
-      .catch(() => nav('/login'));
-  }, [nav, setUser]);
+      .catch(() => {
+        if (!user) nav('/login');
+      });
+  }, [nav, setUser, user]);
 
   const serversQ = useQuery({
     queryKey: ['servers'],
@@ -1204,7 +1240,7 @@ export function CommunityPage() {
   const presenceQ = useQuery({
     queryKey: ['presence', serverId],
     queryFn: async () => {
-      if (!GEO.asked && typeof navigator !== 'undefined' && navigator.geolocation) {
+      if (!GEO.asked && typeof window !== 'undefined' && !(window as any).sfDesktop && typeof navigator !== 'undefined' && navigator.geolocation) {
         GEO.asked = true;
         navigator.geolocation.getCurrentPosition(
           (pos) => {
@@ -1294,6 +1330,18 @@ export function CommunityPage() {
 
   useEffect(() => {
     if (window.sfDesktop) document.body.classList.add('is-desktop-app');
+  }, []);
+
+  // Hotkey F8 ou Ctrl+Shift+T para abrir o painel de telemetria e benchmarks
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'F8' || (e.ctrlKey && e.shiftKey && (e.key === 'T' || e.key === 't'))) {
+        e.preventDefault();
+        setTelemetryOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
   // Partilha placar CS2 (GSI) com a lista de membros via Redis presence
@@ -1394,6 +1442,52 @@ export function CommunityPage() {
   useEffect(() => {
     if (voiceChannelId) voiceJoinAtRef.current = Date.now();
   }, [voiceChannelId]);
+
+  // Toca som suave quando alguém entra na call
+  const prevVoiceMemberIdsRef = useRef<Set<string>>(new Set());
+  const prevActiveVoiceChRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!voiceChannelId || !voice.connected) {
+      prevVoiceMemberIdsRef.current = new Set();
+      prevActiveVoiceChRef.current = null;
+      return;
+    }
+
+    const fromPresence = presenceQ.data?.presence?.[String(voiceChannelId)] || [];
+    const currentMemberIds = new Set<string>();
+    for (const p of fromPresence) {
+      const id = String(p.user_id || p.identity || '');
+      if (id) currentMemberIds.add(id);
+    }
+    for (const p of voice.participants) {
+      if (!p.isLocal && p.id) {
+        currentMemberIds.add(String(p.id));
+      }
+    }
+
+    // Ao entrar em um canal, armazena membros existentes sem soar alerta
+    if (prevActiveVoiceChRef.current !== voiceChannelId) {
+      prevActiveVoiceChRef.current = voiceChannelId;
+      prevVoiceMemberIdsRef.current = currentMemberIds;
+      return;
+    }
+
+    const myId = user?.id ? String(user.id) : '';
+    let hasNewMember = false;
+    for (const id of currentMemberIds) {
+      if (id !== myId && !prevVoiceMemberIdsRef.current.has(id)) {
+        hasNewMember = true;
+        break;
+      }
+    }
+
+    prevVoiceMemberIdsRef.current = currentMemberIds;
+
+    if (hasNewMember) {
+      void playVoiceJoinChime();
+    }
+  }, [presenceQ.data?.presence, voice.participants, voiceChannelId, voice.connected, user?.id]);
 
   // Outra aba/app tomou a voz → desconecta só localmente
   useEffect(() => {
@@ -1724,6 +1818,7 @@ export function CommunityPage() {
     publicWatchCustomNames: boolean;
     publicWatchChat: boolean;
     publicWatchChatPost: boolean;
+    sourceId?: string;
   }) {
     try {
       const result = await voice.shareScreen(opts);
@@ -1923,11 +2018,13 @@ export function CommunityPage() {
   const meFace = user?.avatar_url || DEFAULT_AVATAR;
   const meName = user?.label || user?.username || '—';
   const isDmHub = view === 'dm';
-  const showSidebar = hasServer || isDmHub || isWaHub;
+  const isDiscover = view === 'discover';
+  const showSidebar = !isDiscover && (hasServer || isDmHub || isWaHub);
   const hasWaPeer = isWaHub && !!wa.chatJid && wa.unlocked;
 
   useEffect(() => {
     applyThemeState(commRootRef.current, themeState);
+    applyAppearance(useAppearance.getState().preview);
   }, [themeState, showSidebar, view, serverId]);
 
   const dmPeer =
@@ -1957,245 +2054,58 @@ export function CommunityPage() {
         ? workStatus
         : presenceQ.data?.work_statuses?.[String(m.id)] || m.work_status;
     const info = presenceQ.data?.presence_info?.[String(m.id)];
-    const accent = memberCardAccent(m, rolesById);
-    const cargo = memberPrimaryCargo(m, rolesById);
-    const customs = memberSortedCustoms(m, rolesById);
-    const cardStyle = accent
-      ? ({ ['--member-card-accent']: accent } as CSSProperties)
-      : undefined;
+    const activity = info?.cs2_live
+      ? 'jogando CS2'
+      : info?.activity?.title
+        ? info.activity.title
+        : st && st !== 'disp' && st !== 'em_chamada'
+          ? statusLabel(st)
+          : '';
+
     return (
-      <article
+      <button
         key={m.id}
-        className={`comm-member-card${isOnline ? ' is-online' : ' is-offline'}${
-          m.role === 'owner' ? ' is-owner-card' : ''
-        }`}
-        style={cardStyle}
-        onClick={() => setMemberProfile(m)}
+        type="button"
+        className={`comm-member-row${isOnline ? ' is-online' : ' is-offline'}`}
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setPopoverMember({
+            member: m,
+            rect,
+            isOnline,
+            activity,
+          });
+        }}
+        onMouseEnter={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          if (popoverTimeoutRef.current) window.clearTimeout(popoverTimeoutRef.current);
+          popoverTimeoutRef.current = window.setTimeout(() => {
+            setPopoverMember({
+              member: m,
+              rect,
+              isOnline,
+              activity,
+            });
+          }, 300);
+        }}
+        onMouseLeave={() => {
+          if (popoverTimeoutRef.current) window.clearTimeout(popoverTimeoutRef.current);
+        }}
+        title={m.label}
       >
-        <div className="comm-member-av-wrap">
+        <div className="comm-member-avatar-wrap">
           <Avatar name={m.label} url={m.avatar_url} />
           <span
-            className="comm-member-av-dot"
-            title={isOnline ? 'online' : 'offline'}
+            className={`comm-member-status-dot ${isOnline ? 'online' : 'offline'}`}
+            title={isOnline ? 'Online' : 'Offline'}
             aria-hidden
           />
         </div>
-        <div className="comm-member-body">
-          <div className="comm-member-top">
-            <div className="comm-member-top-name">
-              <strong>{m.label}</strong>
-              <span
-                className={`comm-member-name-cargo fx-${cargo.border_effect || 'solid'} motion-${cargo.border_motion || 'none'}`}
-                style={{
-                  ['--cargo-color' as string]: cargo.color,
-                  ['--cargo-border-color' as string]: cargo.border_color || cargo.color,
-                }}
-                title={cargo.name}
-              >
-                {cargo.name}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="comm-member-menu"
-              aria-label="Opções"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMemberProfile(m);
-              }}
-            >
-              <MoreVertical size={14} />
-            </button>
-          </div>
-          <ShowcaseBadges items={m.showcase_items} size="sm" onOpen={setItemDetail} />
-          {customs.length > 1 ? (
-            <div className="comm-member-tags">
-              {customs.slice(1).map((r) => {
-                const full = rolesById?.get(r.id);
-                const effect = full?.border_effect || r.border_effect || 'solid';
-                const motion = full?.border_motion || r.border_motion || 'none';
-                const border = full?.border_color || r.border_color || r.color || '#949ba4';
-                return (
-                  <span
-                    key={r.id}
-                    className={`comm-member-tag fx-${effect} motion-${motion}`}
-                    style={{
-                      ['--tag-color' as string]: r.color || '#949ba4',
-                      ['--tag-border-color' as string]: border,
-                    }}
-                  >
-                    {r.name}
-                  </span>
-                );
-              })}
-            </div>
-          ) : null}
-          {isOnline && (m.ramal || (st && st !== 'em_chamada')) ? (
-            <div className="comm-badges">
-              {m.ramal ? (
-                <span
-                  className={`comm-ramal-badge${st === 'em_chamada' ? ' is-oncall' : ''}`}
-                  title={`Ramal ${m.ramal}`}
-                >
-                  <Phone size={12} aria-hidden />
-                  {m.ramal}
-                  {st === 'em_chamada' ? (
-                    <em className="comm-ramal-oncall">Em ligação</em>
-                  ) : null}
-                </span>
-              ) : null}
-              {st && st !== 'em_chamada' ? (
-                <span className="comm-work-status" data-status={st} title={statusLabel(st)}>
-                  {statusLabel(st)}
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-          {(() => {
-            const shared = info?.cs2_live;
-            const sharedFresh = shared && Date.now() - (shared.at || 0) < 120000;
-            const pm = privateMatch.active;
-            const inPrivateLive =
-              !!pm && (pm.status === 'live' || pm.status === 'connecting');
-            const pmLive =
-              inPrivateLive &&
-              pm.players?.find(
-                (p) =>
-                  p.userId === m.id &&
-                  (p.inviteStatus === 'host' || p.inviteStatus === 'accepted'),
-              );
-            let localPayload =
-              m.id === user?.id &&
-              cs2Gsi.snap &&
-              Date.now() - (cs2Gsi.snap.at || 0) < 45000
-                ? cs2LiveFromSnap(cs2Gsi.snap, {
-                    mode: cs2ShareRef.current.mode,
-                    modeLabel: cs2ShareRef.current.modeLabel,
-                  })
-                : null;
-            // Em scrim privada o GSI às vezes vem como lobby — força match + mapa da sala
-            if (localPayload && pmLive && pmLive.team !== 'SPEC') {
-              localPayload = {
-                ...localPayload,
-                kind: 'match',
-                map:
-                  localPayload.map ||
-                  String(pm.votedMap || pm.connect?.map || 'CS2').replace(/^de_/, '') ||
-                  'CS2',
-                scoreCt: localPayload.scoreCt ?? pm.scoreCt ?? 0,
-                scoreT: localPayload.scoreT ?? pm.scoreT ?? 0,
-                mode: pm.mode === 'host_listen' ? 'dedicated' : 'private',
-                modeLabel: 'Partida privada',
-                phase: localPayload.phase || pm.status,
-              };
-            }
-
-            const matchChip =
-              pmLive && pmLive.team !== 'SPEC'
-                ? (() => {
-                    const st = (pm.stats || []).find(
-                      (s) =>
-                        (s.userId && s.userId === m.id) ||
-                        (pmLive.steamid &&
-                          String(s.steamid || '').replace(/\D/g, '') ===
-                            String(pmLive.steamid).replace(/\D/g, '')),
-                    );
-                    const team = String(pmLive.gameTeam || pmLive.team || '').toUpperCase();
-                    const health =
-                      typeof pmLive.health === 'number'
-                        ? pmLive.health
-                        : pmLive.alive === false
-                          ? 0
-                          : pmLive.alive === true
-                            ? 100
-                            : 100;
-                    // GSI local / Redis tem prioridade nos números; partida só ancora presença
-                    const gsiNums =
-                      (localPayload?.kind === 'match' && localPayload) ||
-                      (sharedFresh && shared?.kind === 'match' ? shared : null);
-                    return {
-                      at: gsiNums?.at || Date.now(),
-                      map: String(
-                        gsiNums?.map || pm.votedMap || pm.connect?.map || 'CS2',
-                      ).replace(/^de_/, ''),
-                      scoreCt: Number.isFinite(Number(gsiNums?.scoreCt ?? pm.scoreCt))
-                        ? Number(gsiNums?.scoreCt ?? pm.scoreCt)
-                        : 0,
-                      scoreT: Number.isFinite(Number(gsiNums?.scoreT ?? pm.scoreT))
-                        ? Number(gsiNums?.scoreT ?? pm.scoreT)
-                        : 0,
-                      team:
-                        (gsiNums?.team === 'CT' || gsiNums?.team === 'T'
-                          ? gsiNums.team
-                          : team === 'CT' || team === 'T'
-                            ? team
-                            : '') || '',
-                      kills: Number(gsiNums?.kills ?? st?.kills) || 0,
-                      deaths: Number(gsiNums?.deaths ?? st?.deaths) || 0,
-                      health:
-                        typeof gsiNums?.health === 'number' ? gsiNums.health : health,
-                      kind: 'match' as const,
-                      mode: pm.mode === 'host_listen' ? 'dedicated' : 'private',
-                      modeLabel: 'Partida privada',
-                      phase: gsiNums?.phase || pm.status,
-                    };
-                  })()
-                : null;
-
-            if (localPayload?.kind === 'match') {
-              return <Cs2MemberLiveChip live={localPayload} compact />;
-            }
-            if (matchChip) {
-              return <Cs2MemberLiveChip live={matchChip} compact />;
-            }
-            if (sharedFresh && shared) {
-              return <Cs2MemberLiveChip live={shared} compact />;
-            }
-            if (localPayload) {
-              return <Cs2MemberLiveChip live={localPayload} compact />;
-            }
-            return null;
-          })()}
-          {isOnline && info?.activity?.type === 'listening' ? (
-            <button
-              type="button"
-              className="comm-listening-chip"
-              title={info.activity.title || 'Ouvindo no YouTube'}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (info.activity?.url) window.open(info.activity.url, '_blank', 'noopener');
-              }}
-            >
-              <span className="comm-listening-ico" aria-hidden>
-                ♪
-              </span>
-              <span className="yt-marquee">
-                <span className="yt-marquee-inner">
-                  {info.activity.title || 'YouTube'}
-                </span>
-              </span>
-            </button>
-          ) : null}
-          {isOnline && (info?.location || info?.ping_ms != null) ? (
-            <div className="comm-net-meta">
-              {info?.location ? <span className="comm-net-loc">{info.location}</span> : null}
-              {info?.location && info?.ping_ms != null ? (
-                <span className="comm-net-sep" aria-hidden>
-                  ·
-                </span>
-              ) : null}
-              {info?.ping_ms != null ? (
-                <span
-                  className={`comm-net-ping is-${pingQuality(info.ping_ms)}`}
-                  title={`Ping ${Math.round(info.ping_ms)} ms`}
-                >
-                  {Math.round(info.ping_ms)} ms
-                </span>
-              ) : null}
-            </div>
-          ) : null}
+        <div className="comm-member-info">
+          <span className="comm-member-name">{m.label}</span>
+          {activity ? <span className="comm-member-activity">{activity}</span> : null}
         </div>
-      </article>
+      </button>
     );
   }
 
@@ -2263,8 +2173,8 @@ export function CommunityPage() {
         ref={commRootRef}
         className={`comm${showSidebar ? ' has-server' : ''}${isDmHub ? ' is-dm-hub' : ''}${
           isWaHub ? ' is-wa-hub' : ''
-        }${hasWaPeer ? ' has-wa-peer' : ''}${
-          hasServer && !isDmHub && !isWaHub && !membersPanelOpen ? ' is-members-collapsed' : ''
+        }${isDiscover ? ' is-discover' : ''}${hasWaPeer ? ' has-wa-peer' : ''}${
+          hasServer && !isDmHub && !isWaHub && !isDiscover && !membersPanelOpen ? ' is-members-collapsed' : ''
         }`}
         data-community
         data-livekit={server?.livekit ? '1' : '0'}
@@ -2278,6 +2188,7 @@ export function CommunityPage() {
             onClick={() => {
               exitWaHub();
               exitDmHub();
+              if (view === 'discover') setView('empty');
               nav('/comunidade');
             }}
           >
@@ -2314,7 +2225,7 @@ export function CommunityPage() {
               <li key={s.id}>
                 <button
                   type="button"
-                  className={`comm-rail-btn${serverId === s.id && !isDmHub && !isWaHub ? ' is-on' : ''}`}
+                  className={`comm-rail-btn${serverId === s.id && !isDmHub && !isWaHub && !isDiscover ? ' is-on' : ''}`}
                   title={s.name}
                   onClick={() => {
                     exitWaHub();
@@ -2341,25 +2252,23 @@ export function CommunityPage() {
           >
             <Plus size={20} />
           </button>
-          <Link className="comm-rail-btn" to="/descobrir" title="Descobrir servidores">
+          <button
+            type="button"
+            className={`comm-rail-btn${isDiscover ? ' is-on' : ''}`}
+            title="Descobrir servidores"
+            onClick={() => {
+              exitWaHub();
+              setDmUserId(null);
+              setDmServerId(null);
+              setView('discover');
+              nav('/descobrir');
+            }}
+          >
             <Search size={20} />
-          </Link>
+          </button>
           <Link className="comm-rail-btn" to="/youtube" title="YouTube">
             <CirclePlay size={20} />
           </Link>
-          <button
-            type="button"
-            className="comm-rail-btn"
-            title="Entrar com convite"
-            onClick={() => setJoinOpen(true)}
-          >
-            <Compass size={20} />
-          </button>
-          {user?.is_super ? (
-            <Link className="comm-rail-btn" to="/admin" title="Admin">
-              <Table2 size={20} />
-            </Link>
-          ) : null}
         </aside>
 
         <aside
@@ -2595,7 +2504,18 @@ export function CommunityPage() {
                     .sort((a, b) => a.position - b.position || a.id - b.id)
                     .map((c) => (
                       <li className="comm-ch-wrap" key={c.id}>
-                        <div className={`comm-ch-row${canManageChannels ? ' is-manageable' : ''}`}>
+                        <div
+                          className="comm-ch-row"
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setChannelContextMenu({
+                              channel: c,
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          }}
+                        >
                           <button
                             type="button"
                             className={`comm-ch${channelId === c.id && view === 'chat' ? ' is-on' : ''}`}
@@ -2608,49 +2528,19 @@ export function CommunityPage() {
                             <ChannelIcon channel={c} />
                             <span>{c.name}</span>
                           </button>
-                          {canManageChannels ? (
-                            <>
-                              {canEditChannel ? (
-                                <button
-                                  type="button"
-                                  className="comm-ch-edit"
-                                  title="Editar canal"
-                                  onClick={() => setChannelEdit(c)}
-                                >
-                                  <Pencil size={12} />
-                                </button>
-                              ) : null}
-                              {canReorderChannels ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="comm-ch-edit"
-                                    title="Subir"
-                                    onClick={() => void moveChannel(c.id, -1)}
-                                  >
-                                    <ChevronUp size={12} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="comm-ch-edit"
-                                    title="Descer"
-                                    onClick={() => void moveChannel(c.id, 1)}
-                                  >
-                                    <ChevronDown size={12} />
-                                  </button>
-                                </>
-                              ) : null}
-                              {canDeleteChannel ? (
-                                <button
-                                  type="button"
-                                  className="comm-ch-edit"
-                                  title="Excluir canal"
-                                  onClick={() => void deleteChannel(c.id, c.name)}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              ) : null}
-                            </>
+                          {canManageChannels && canEditChannel ? (
+                            <button
+                              type="button"
+                              className="comm-channel-gear"
+                              title="Editar canal"
+                              aria-label="Editar canal"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setChannelEdit(c);
+                              }}
+                            >
+                              <Settings size={13} strokeWidth={1.7} />
+                            </button>
                           ) : null}
                         </div>
                       </li>
@@ -2667,7 +2557,18 @@ export function CommunityPage() {
                     .sort((a, b) => a.position - b.position || a.id - b.id)
                     .map((c) => (
                       <li className="comm-ch-wrap" key={c.id}>
-                        <div className={`comm-ch-row${canManageChannels && !matchVoiceIds.has(c.id) ? ' is-manageable' : ''}`}>
+                        <div
+                          className="comm-ch-row"
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setChannelContextMenu({
+                              channel: c,
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          }}
+                        >
                           <button
                             type="button"
                             className={`comm-ch${
@@ -2680,93 +2581,40 @@ export function CommunityPage() {
                             <ChannelIcon channel={c} />
                             <span>{c.name}</span>
                           </button>
-                          {canManageChannels && !matchVoiceIds.has(c.id) ? (
-                            <>
-                              {canEditChannel ? (
-                                <button
-                                  type="button"
-                                  className="comm-ch-edit"
-                                  title="Editar canal"
-                                  onClick={() => setChannelEdit(c)}
-                                >
-                                  <Pencil size={12} />
-                                </button>
-                              ) : null}
-                              {canReorderChannels ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="comm-ch-edit"
-                                    title="Subir"
-                                    onClick={() => void moveChannel(c.id, -1)}
-                                  >
-                                    <ChevronUp size={12} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="comm-ch-edit"
-                                    title="Descer"
-                                    onClick={() => void moveChannel(c.id, 1)}
-                                  >
-                                    <ChevronDown size={12} />
-                                  </button>
-                                </>
-                              ) : null}
-                              {canDeleteChannel ? (
-                                <button
-                                  type="button"
-                                  className="comm-ch-edit"
-                                  title="Excluir canal"
-                                  onClick={() => void deleteChannel(c.id, c.name)}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              ) : null}
-                            </>
+                          {canManageChannels && !matchVoiceIds.has(c.id) && canEditChannel ? (
+                            <button
+                              type="button"
+                              className="comm-channel-gear"
+                              title="Editar canal"
+                              aria-label="Editar canal"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setChannelEdit(c);
+                              }}
+                            >
+                              <Settings size={13} strokeWidth={1.7} />
+                            </button>
                           ) : null}
                         </div>
-                        <ul className="comm-voice-roster">
-                          {((): Array<{
+                        {(() => {
+                          const fromApi = (presenceQ.data?.presence?.[String(c.id)] || []).map(
+                            (p) => ({
+                              ...p,
+                              speaking: false,
+                            }),
+                          );
+                          const parts = ((): Array<{
                             identity: string;
                             name: string;
-                            user_id: number;
                             avatar_url: string;
-                            ramal?: string;
-                            work_status?: string;
-                            location?: string;
-                            ping_ms?: number | null;
                             speaking?: boolean;
-                            sharing?: boolean;
                           }> => {
-                            const fromApi = (presenceQ.data?.presence?.[String(c.id)] || []).map(
-                              (p) => ({
-                                ...p,
-                                speaking: false,
-                                sharing: false,
-                              }),
-                            );
-                            // Canal ativo: LiveKit é mais rápido; mescla com presence da API
-                            // para o roster aparecer igual antes/depois de conectar.
                             if (
                               voiceServerId === serverId &&
                               voiceChannelId === c.id &&
                               voice.connected
                             ) {
-                              const byKey = new Map<
-                                string,
-                                {
-                                  identity: string;
-                                  name: string;
-                                  user_id: number;
-                                  avatar_url: string;
-                                  ramal?: string;
-                                  work_status?: string;
-                                  location?: string;
-                                  ping_ms?: number | null;
-                                  speaking?: boolean;
-                                  sharing?: boolean;
-                                }
-                              >();
+                              const byKey = new Map<string, { identity: string; name: string; avatar_url: string; speaking?: boolean }>();
                               for (const p of fromApi) {
                                 byKey.set(p.identity || `u${p.user_id}`, { ...p });
                               }
@@ -2780,136 +2628,41 @@ export function CommunityPage() {
                                 byKey.set(p.id, {
                                   identity: p.id,
                                   name: p.name,
-                                  user_id: uid,
                                   avatar_url:
                                     member?.avatar_url ||
                                     fromRow?.avatar_url ||
                                     p.avatarUrl ||
                                     '',
-                                  ramal: fromRow?.ramal || member?.ramal || '',
-                                  work_status:
-                                    fromRow?.work_status ||
-                                    presenceQ.data?.work_statuses?.[String(uid)] ||
-                                    member?.work_status ||
-                                    '',
-                                  location: fromRow?.location,
-                                  ping_ms: fromRow?.ping_ms,
                                   speaking: p.speaking,
-                                  sharing: p.hasScreen,
                                 });
                               }
                               return [...byKey.values()];
                             }
                             return fromApi;
-                          })().map((p) => {
-                            const canKickVoice =
-                              canModerate &&
-                              !!p.user_id &&
-                              p.user_id !== user?.id;
-                            const self =
-                              p.user_id === user?.id ||
-                              (voiceChannelId === c.id &&
-                                voice.participants.some((x) => x.isLocal && x.id === p.identity));
-                            const st = presenceQ.data?.on_call?.[String(p.user_id)]
-                              ? 'em_chamada'
-                              : p.user_id === user?.id
-                                ? workStatus || p.work_status || ''
-                                : presenceQ.data?.work_statuses?.[String(p.user_id)] ||
-                                  p.work_status ||
-                                  '';
-                            return (
-                              <li
-                                key={p.identity}
-                                className={`comm-voice-user${p.speaking ? ' is-speaking' : ''}${self ? ' is-self' : ''}`}
-                                data-voice-identity={p.identity}
-                              >
-                                <div className="comm-voice-user-av">
-                                  <Avatar name={p.name} url={p.avatar_url} />
-                                  <span className="comm-dot" aria-hidden />
-                                </div>
-                                <div className="comm-voice-user-meta">
-                                  <span className="comm-voice-user-name">
-                                    {p.name}
-                                    {p.sharing ? (
-                                      <span className="comm-voice-rec" title="Transmitindo tela">
-                                        <i className="comm-voice-rec-dot" aria-hidden />
-                                        <span>REC</span>
-                                      </span>
-                                    ) : null}
-                                  </span>
-                                  <ShowcaseBadges
-                                    items={
-                                      (p.user_id &&
-                                        server?.members.find((m) => m.id === p.user_id)?.showcase_items) ||
-                                      []
-                                    }
-                                    size="xs"
-                                    onOpen={setItemDetail}
-                                  />
-                                  {p.ramal || (st && st !== 'em_chamada') ? (
-                                    <div className="comm-badges">
-                                      {p.ramal ? (
-                                        <span
-                                          className={`comm-ramal-badge${st === 'em_chamada' ? ' is-oncall' : ''}`}
-                                          title={`Ramal ${p.ramal}`}
-                                        >
-                                          <Phone size={11} aria-hidden />
-                                          {p.ramal}
-                                          {st === 'em_chamada' ? (
-                                            <em className="comm-ramal-oncall">Em ligação</em>
-                                          ) : null}
-                                        </span>
-                                      ) : null}
-                                      {st && st !== 'em_chamada' ? (
-                                        <span className="comm-work-status" data-status={st} title={statusLabel(st)}>
-                                          {statusLabel(st)}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                  {p.location || p.ping_ms != null ? (
-                                    <span className="comm-voice-net">
-                                      {p.location ? (
-                                        <span className="comm-voice-loc">{p.location}</span>
-                                      ) : null}
-                                      {p.location && p.ping_ms != null ? (
-                                        <span className="comm-voice-net-sep" aria-hidden>
-                                          ·
-                                        </span>
-                                      ) : null}
-                                      {p.ping_ms != null ? (
-                                        <span
-                                          className={`comm-voice-ping is-${pingQuality(p.ping_ms)}`}
-                                          title={`Ping ${Math.round(p.ping_ms)} ms`}
-                                        >
-                                          {Math.round(p.ping_ms)} ms
-                                        </span>
-                                      ) : null}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                {canKickVoice ? (
-                                  <button
-                                    type="button"
-                                    className="comm-voice-kick"
-                                    title="Desconectar da voz"
-                                    onClick={() => {
-                                      void api(
-                                        `/api/community/servers/${serverId}/members/${p.user_id}/voice-disconnect`,
-                                        {
-                                          method: 'POST',
-                                          body: JSON.stringify({ channel_id: c.id }),
-                                        },
-                                      ).then(() => presenceQ.refetch());
-                                    }}
-                                  >
-                                    <PhoneOff size={12} />
-                                  </button>
-                                ) : null}
-                              </li>
-                            );
-                          })}
-                        </ul>
+                          })();
+
+                          if (!parts.length) return null;
+
+                          return (
+                            <div
+                              className="comm-voice-stack"
+                              title={`${parts.length} em chamada: ${parts.map((p) => p.name).join(', ')}`}
+                            >
+                              {parts.slice(0, 3).map((p) => (
+                                <img
+                                  key={p.identity}
+                                  className={`comm-voice-stack-avatar${p.speaking ? ' is-speaking' : ''}`}
+                                  src={p.avatar_url || DEFAULT_AVATAR}
+                                  alt={p.name}
+                                  title={`${p.name}${p.speaking ? ' (falando)' : ''}`}
+                                />
+                              ))}
+                              {parts.length > 3 ? (
+                                <span className="comm-voice-stack-more">+{parts.length - 3}</span>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
                       </li>
                     ))}
                 </ul>
@@ -2973,166 +2726,82 @@ export function CommunityPage() {
           </>
           )}
 
-          <div className="comm-userbar">
-            <div
-              className="comm-userbar-persona"
-              role="button"
-              tabIndex={0}
-              title="Editar perfil"
-              onClick={() => {
-                setProfileTab('appearance');
-                setProfileOpen(true);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
+          <div className="comm-userbar-pill">
+            {voice.connected && (
+              <div className="comm-userbar-call-bar">
+                <span className="comm-userbar-call-status">
+                  <span className="comm-voice-rec-dot" />
+                  Em voz: {activeChannel?.name || 'Canal'}
+                </span>
+                <button
+                  type="button"
+                  className="comm-userbar-btn is-active-red"
+                  title="Desconectar"
+                  aria-label="Desconectar da chamada"
+                  onClick={() => {
+                    leaveVoice();
+                    void presenceQ.refetch();
+                  }}
+                >
+                  <PhoneOff size={14} strokeWidth={1.7} />
+                </button>
+              </div>
+            )}
+            <div className="comm-userbar-row">
+              <div
+                className="comm-userbar-info"
+                role="button"
+                tabIndex={0}
+                title="Editar perfil"
+                onClick={() => {
                   setProfileTab('appearance');
                   setProfileOpen(true);
-                }
-              }}
-            >
-              <Avatar name={meName} url={meFace} />
-              <div className="comm-userbar-meta">
-                <div className="comm-userbar-name-row">
-                  <strong>{meName}</strong>
-                  <button
-                    type="button"
-                    className={`comm-userbar-noise-btn${audioPrefs.noiseEngine !== 'off' ? ' is-on' : ''}`}
-                    title={
-                      audioPrefs.noiseEngine === 'off'
-                        ? 'Filtro de ruído desligado'
-                        : audioPrefs.noiseEngine === 'browser'
-                          ? 'Filtro browser ligado'
-                          : `${
-                              audioPrefs.noiseEngine === 'rnnoise'
-                                ? 'RNNoise'
-                                : audioPrefs.noiseEngine === 'dtln'
-                                  ? 'DTLN'
-                                  : audioPrefs.noiseEngine === 'krisp'
-                                    ? 'Krisp'
-                                    : 'DeepFilterNet'
-                            } ${audioPrefs.noiseLevel}%`
-                    }
-                    aria-pressed={audioPrefs.noiseEngine !== 'off'}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const nextEngine =
-                        audioPrefs.noiseEngine === 'off' ? 'krisp' : 'off';
-                      setAudioPrefs({
-                        ...audioPrefs,
-                        noiseEngine: nextEngine as typeof audioPrefs.noiseEngine,
-                        noiseFilter: nextEngine !== 'off',
-                      });
-                    }}
-                  >
-                    <AudioLines size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="comm-userbar-profile-btn"
-                    title="Editar perfil"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setProfileTab('appearance');
-                      setProfileOpen(true);
-                    }}
-                  >
-                    <UserRoundCog size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="comm-userbar-profile-btn"
-                    title="Steam CS2 · Trade URL · insignias"
-                    data-comm-steam-setup
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSteamOpen(true);
-                    }}
-                  >
-                    <Link2 size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="comm-userbar-profile-btn"
-                    title="Minhas trocas"
-                    data-comm-my-trades
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTradesOpen(true);
-                    }}
-                  >
-                    <ArrowLeftRight size={14} />
-                  </button>
-                </div>
-                <span className="muted">{voice.connected ? 'Em voz' : 'Pronto'}</span>
-              </div>
-            </div>
-            <ShowcaseBadges
-              items={
-                (user && server?.members.find((m) => m.id === user.id)?.showcase_items) || []
-              }
-              size="xs"
-              className="comm-userbar-badges"
-              onOpen={setItemDetail}
-            />
-            <div className="comm-userbar-controls">
-              <button
-                type="button"
-                className="comm-ctrl"
-                title="Temas premium"
-                onClick={() => setThemeOpen(true)}
-              >
-                <Palette size={16} />
-              </button>
-              <button
-                type="button"
-                className="comm-ctrl"
-                title="Áudio e voz"
-                onClick={() => setAudioOpen(true)}
-              >
-                <Settings size={16} />
-              </button>
-              <button
-                type="button"
-                className={`comm-ctrl${!voice.micOn || voice.deafened ? ' is-off' : ''}`}
-                title="Microfone"
-                aria-pressed={!voice.micOn || voice.deafened}
-                onClick={() => void voice.toggleMic()}
-              >
-                {voice.micOn && !voice.deafened ? <Mic size={16} /> : <MicOff size={16} />}
-              </button>
-              <button
-                type="button"
-                className={`comm-ctrl${voice.deafened ? ' is-off' : ''}`}
-                title="Fones / ensurdecer"
-                aria-pressed={voice.deafened}
-                onClick={() => void voice.toggleDeafen()}
-              >
-                {voice.deafened ? <HeadphoneOff size={16} /> : <Headphones size={16} />}
-              </button>
-              <button
-                type="button"
-                className="comm-ctrl"
-                title="Desconectar"
-                disabled={!voice.connected}
-                onClick={() => {
-                  leaveVoice();
-                  void presenceQ.refetch();
                 }}
               >
-                <PhoneOff size={16} />
-              </button>
-              <button
-              type="button"
-              className="comm-ctrl"
-              title="Sair da conta"
-              onClick={() => {
-                if (window.sfDesktop?.logout) void window.sfDesktop.logout();
-                else void logout();
-              }}
-            >
-              <LogOut size={16} />
-            </button>
+                <div className="comm-userbar-avatar-wrap">
+                  <Avatar name={meName} url={meFace} />
+                  <span className="comm-userbar-status-dot" aria-hidden />
+                </div>
+                <div className="comm-userbar-meta">
+                  <span className="comm-userbar-name">{meName}</span>
+                  <span className="comm-userbar-state">
+                    {voice.connected ? 'Lobby · 24 ms' : 'Online'}
+                  </span>
+                </div>
+              </div>
+              <div className="comm-userbar-tools">
+                <button
+                  type="button"
+                  className={`comm-userbar-btn${!voice.micOn || voice.deafened ? ' is-active-red' : ''}`}
+                  title={voice.micOn && !voice.deafened ? 'Desativar microfone' : 'Ativar microfone'}
+                  aria-label={voice.micOn && !voice.deafened ? 'Desativar microfone' : 'Ativar microfone'}
+                  aria-pressed={!voice.micOn || voice.deafened}
+                  onClick={() => void voice.toggleMic()}
+                >
+                  {voice.micOn && !voice.deafened ? <Mic size={16} strokeWidth={1.7} /> : <MicOff size={16} strokeWidth={1.7} />}
+                </button>
+                <button
+                  type="button"
+                  className="comm-userbar-btn"
+                  title="Configurações de áudio e voz"
+                  aria-label="Configurações de áudio e voz"
+                  onClick={() => {
+                    setUserSettingsTab('voice');
+                    setUserSettingsOpen(true);
+                  }}
+                >
+                  <Settings size={16} strokeWidth={1.7} />
+                </button>
+                <button
+                  type="button"
+                  className={`comm-userbar-btn${telemetryOpen ? ' is-active-brand' : ''}`}
+                  title="Telemetria & Benchmarks RFC v3.0 (F8)"
+                  aria-label="Telemetria & Benchmarks"
+                  onClick={() => setTelemetryOpen((prev) => !prev)}
+                >
+                  <Activity size={16} strokeWidth={1.7} />
+                </button>
+              </div>
             </div>
           </div>
         </aside>
@@ -3140,7 +2809,20 @@ export function CommunityPage() {
         <section className="comm-main" data-theme-surface="chat">
           {isWaHub ? <WaChatPane wa={wa} /> : null}
 
+          {isDiscover ? (
+            <DiscoverView
+              brandName={brandName}
+              onOpenInvite={() => setJoinOpen(true)}
+              onSelectServer={(sid) => {
+                setIsWaHub(false);
+                setView('chat');
+                nav(`/comunidade/${sid}`);
+              }}
+            />
+          ) : null}
+
           {!isWaHub &&
+          !isDiscover &&
           view !== 'match' &&
           (view === 'empty' || (!activeChannel && view !== 'dm') || (view === 'dm' && !dmUserId)) ? (
             <div className="comm-empty">
@@ -3159,9 +2841,17 @@ export function CommunityPage() {
                     <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
                       Criar servidor
                     </button>
-                    <Link className="btn" to="/descobrir">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setIsWaHub(false);
+                        setView('discover');
+                        nav('/descobrir');
+                      }}
+                    >
                       Descobrir servidores
-                    </Link>
+                    </button>
                     <button type="button" className="btn" onClick={() => setJoinOpen(true)}>
                       Entrar com convite
                     </button>
@@ -3173,9 +2863,30 @@ export function CommunityPage() {
 
           {!isWaHub && view === 'chat' && activeChannel ? (
             <div className="comm-chat">
-              <header className="comm-main-head">
-                <ChannelIcon channel={activeChannel} />
-                <span>{activeChannel.name}</span>
+              <header className="comm-main-head comm-chat-header-island">
+                <div className="comm-chat-title-group">
+                  <ChannelIcon channel={activeChannel} />
+                  <span className="comm-chat-channel-name">{activeChannel.name}</span>
+                </div>
+                <div className="comm-chat-header-actions">
+                  <button
+                    type="button"
+                    className="comm-icon-btn"
+                    title="Mensagens fixadas"
+                    aria-label="Mensagens fixadas"
+                  >
+                    <Pin size={16} strokeWidth={1.7} />
+                  </button>
+                  <button
+                    type="button"
+                    className="comm-icon-btn"
+                    title={membersPanelOpen ? 'Ocultar membros' : 'Mostrar membros'}
+                    aria-label={membersPanelOpen ? 'Ocultar membros' : 'Mostrar membros'}
+                    onClick={() => setMembersPanelOpen((v) => !v)}
+                  >
+                    <Users size={16} strokeWidth={1.7} />
+                  </button>
+                </div>
               </header>
               {serverSystemNotice ? (
                 <div className="comm-msg-system comm-msg-system-banner" role="status">
@@ -3183,6 +2894,7 @@ export function CommunityPage() {
                 </div>
               ) : null}
               <div className="comm-messages">
+                <RallyCard />
                 {messages.map((m) => {
                   const isSystem =
                     !!m.system ||
@@ -3434,12 +3146,17 @@ export function CommunityPage() {
             !hasWaPeer && !membersPanelOpen ? ' is-collapsed' : ''
           }`}
           data-theme-surface="members"
-          hidden={hasWaPeer ? false : !hasServer || isDmHub || isWaHub}
+          hidden={isDiscover || (hasWaPeer ? false : !hasServer || isDmHub || isWaHub)}
           style={
-            hasWaPeer || (hasServer && !isDmHub && !isWaHub)
+            !isDiscover && (hasWaPeer || (hasServer && !isDmHub && !isWaHub))
               ? undefined
               : { display: 'none' }
           }
+          onClick={() => {
+            if (!membersPanelOpen) {
+              setMembersPanelOpen(true);
+            }
+          }}
         >
           {hasWaPeer ? (
             <>
@@ -3475,7 +3192,7 @@ export function CommunityPage() {
                 {membersHideOffline ? onlineMembers.length : members.length}
               </span>
             ) : null}
-            {serverId && !isDmHub && !isWaHub ? (
+            {membersPanelOpen && serverId && !isDmHub && !isWaHub ? (
               <button
                 type="button"
                 className="btn pm-members-btn"
@@ -3493,8 +3210,12 @@ export function CommunityPage() {
               type="button"
               className="comm-members-collapse"
               title={membersPanelOpen ? 'Ocultar membros' : 'Mostrar membros'}
+              aria-label={membersPanelOpen ? 'Ocultar membros' : 'Mostrar membros'}
               aria-pressed={!membersPanelOpen}
-              onClick={() => setMembersPanelOpen((v) => !v)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMembersPanelOpen((v) => !v);
+              }}
             >
               {membersPanelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
             </button>
@@ -3659,7 +3380,41 @@ export function CommunityPage() {
         }}
       />
 
-      {server ? (
+      <ChannelContextMenu
+        data={channelContextMenu}
+        onClose={() => setChannelContextMenu(null)}
+        onEdit={(ch) => {
+          setChannelEdit(ch);
+        }}
+        onDelete={async (ch) => {
+          if (!confirm(`Excluir o canal "${ch.name}"? Esta ação removerá o canal e suas mensagens.`)) return;
+          try {
+            await api(`/api/community/channels/${ch.id}`, { method: 'DELETE' });
+            void qc.invalidateQueries({ queryKey: ['server', serverId] });
+            if (channelId === ch.id) {
+              nav(`/comunidade/${serverId}`);
+            }
+          } catch (err) {
+            console.error('Falha ao excluir canal:', err);
+          }
+        }}
+        onOpen={(ch) => {
+          setIsWaHub(false);
+          setView('chat');
+          nav(`/comunidade/${serverId}/${ch.id}`);
+        }}
+        onJoinVoice={(ch) => {
+          joinVoiceChannel(ch);
+        }}
+        onLeaveVoice={() => {
+          leaveVoice();
+          void presenceQ.refetch();
+        }}
+        isCurrentVoice={voice.connected && voiceServerId === serverId && voiceChannelId === channelContextMenu?.channel?.id}
+        canManage={canManageChannels && canEditChannel}
+      />
+
+      {server && settingsOpen ? (
         <ServerSettingsDialog
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
@@ -3720,6 +3475,33 @@ export function CommunityPage() {
           }
         }}
       />
+
+      <UserSettingsDialog
+        open={userSettingsOpen}
+        onClose={() => setUserSettingsOpen(false)}
+        defaultTab={userSettingsTab}
+        onOpenProfileEdit={() => setProfileOpen(true)}
+      />
+
+      {popoverMember && (
+        <MemberCardPopover
+          member={popoverMember.member}
+          anchorRect={popoverMember.rect}
+          isOnline={popoverMember.isOnline}
+          activity={popoverMember.activity}
+          location="São Paulo, BR"
+          pingMs={lastPingMs || 14}
+          onClose={() => setPopoverMember(null)}
+          onDm={(userId) => {
+            enterDmHub(userId, popoverMember.member.label);
+            setPopoverMember(null);
+          }}
+          onRallyInvite={() => {
+            openPartidasChannel();
+            setPopoverMember(null);
+          }}
+        />
+      )}
 
       <ThemeSettingsDialog
         open={themeOpen}
@@ -3939,6 +3721,15 @@ export function CommunityPage() {
           onDone={() => void qc.invalidateQueries({ queryKey: ['server', serverId] })}
         />
       ) : null}
+
+      <VoiceTelemetryPanel
+        open={telemetryOpen}
+        onClose={() => setTelemetryOpen(false)}
+        metricsCollector={voice.metricsCollector}
+        benchmarkRunner={voice.benchmarkRunner}
+        policyEngine={voice.policyEngine}
+        audioBudgetMonitor={voice.audioBudgetMonitor}
+      />
     </div>
     </>
   );

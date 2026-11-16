@@ -52,8 +52,8 @@ export function NativeDialog({
       }
       // Acima do YouTube PiP (100000) e do overlay Pronto (100080)
       const z = 100100 + depthRef.current * 2;
-      if (scrimRef.current) scrimRef.current.style.zIndex = String(z);
-      el.style.zIndex = String(z + 1);
+      if (scrimRef.current) scrimRef.current.style.setProperty('z-index', String(z), 'important');
+      el.style.setProperty('z-index', String(z + 1), 'important');
       if (!el.open) {
         // showModal + overflow:hidden no shell Electron quebra hit-testing
         if (desktop) el.show();
@@ -94,7 +94,9 @@ export function NativeDialog({
         <div
           ref={scrimRef}
           className="comm-dialog-scrim"
-          onClick={() => onCloseRef.current()}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onCloseRef.current();
+          }}
           onPointerDown={(e) => {
             if (e.target === e.currentTarget) onCloseRef.current();
           }}

@@ -1435,7 +1435,7 @@ export function MatchAdminPanel(props: {
       });
       if (!window.sfDesktop?.matchAdminSettings && !window.sfDesktop?.matchDedicatedExec) {
         setMsg(
-          'Abre o Desktop SteamFarm (host) — estes botões só funcionam no Electron com dedicated a correr.',
+          'Abre o Desktop RallyDesk (host) — estes botões só funcionam no Electron com dedicated a correr.',
         );
         return;
       }
@@ -1570,7 +1570,7 @@ export function MatchAdminPanel(props: {
       return;
     }
     if (!window.sfDesktop?.matchDedicatedExec) {
-      setMsg('Executar comando só no Desktop SteamFarm com dedicated a correr.');
+      setMsg('Executar comando só no Desktop RallyDesk com dedicated a correr.');
       return;
     }
     setBusy(true);

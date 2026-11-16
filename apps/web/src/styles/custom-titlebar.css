@@ -1,0 +1,144 @@
+/* ==========================================================================
+   CustomTitleBar — Barra de Título Customizada para Windows / Desktop
+   Integrada ao sistema de temas, sem bordas cinzas nativas
+   ========================================================================== */
+
+:root {
+  --titlebar-height: 32px;
+}
+
+.custom-titlebar {
+  height: var(--titlebar-height, 32px);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  -webkit-user-select: none;
+  background: var(--titlebar-bg, var(--comm-bg0, var(--rail, #070e1b)));
+  color: var(--titlebar-text, var(--comm-text, var(--text, #e8eef9)));
+  border-bottom: 1px solid var(--titlebar-border, var(--comm-line, rgba(255, 255, 255, 0.07)));
+  position: relative;
+  z-index: 99999;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+/* Permitir arrastar a janela pela barra de título */
+.custom-titlebar[data-tauri-drag-region],
+.custom-titlebar-drag {
+  cursor: default;
+}
+
+/* Lado esquerdo: Marca / Ícone / Título */
+.custom-titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 100%;
+  flex-shrink: 0;
+  pointer-events: none; /* Deixa passar drag para a janela */
+}
+
+.custom-titlebar-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--comm-accent, var(--accent, #66c0f4));
+  flex-shrink: 0;
+}
+
+.custom-titlebar-icon img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+.custom-titlebar-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--comm-text, var(--text, #e8eef9));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.9;
+}
+
+/* Centro: Área de arraste expansível */
+.custom-titlebar-drag {
+  flex: 1 1 auto;
+  height: 100%;
+  min-width: 20px;
+}
+
+/* Lado direito: Controles de Janela */
+.custom-titlebar-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.custom-titlebar-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--comm-muted, var(--text-muted, #94a3b8));
+  width: 46px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+  outline: none;
+  padding: 0;
+  margin: 0;
+}
+
+.custom-titlebar-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--comm-text, var(--text, #ffffff));
+}
+
+.custom-titlebar-btn:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.custom-titlebar-btn:focus-visible {
+  outline: 1px solid var(--comm-accent, var(--accent, #66c0f4));
+  outline-offset: -1px;
+}
+
+/* Botão Fechar: Vermelho no hover e active */
+.custom-titlebar-btn.is-close:hover {
+  background: #e81123 !important;
+  color: #ffffff !important;
+}
+
+.custom-titlebar-btn.is-close:active {
+  background: #c4101f !important;
+  color: #ffffff !important;
+}
+
+/* Modo maximizado: pequeno ajuste de padding */
+.custom-titlebar.is-maximized {
+  border-bottom-color: var(--titlebar-border, var(--comm-line, rgba(255, 255, 255, 0.05)));
+}
+
+/* Integração com tema claro (se ativo) */
+body.theme-contrast-light .custom-titlebar-btn:hover {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+body.theme-contrast-light .custom-titlebar-btn:active {
+  background: rgba(0, 0, 0, 0.12);
+}

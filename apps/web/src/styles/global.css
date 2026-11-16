@@ -1,4 +1,10 @@
 @import "./steamfarm-style.css";
+@import "./custom-select.css";
+@import "./custom-titlebar.css";
+
+:root {
+  color-scheme: dark;
+}
 
 /* SteamFarmReact: esconder leftovers office (PABX / status trabalho) */
 .comm-status-bar,
@@ -425,10 +431,19 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
   margin: 0;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0;
+  overflow: hidden;
 }
 
 #root:has(.comm-page) {

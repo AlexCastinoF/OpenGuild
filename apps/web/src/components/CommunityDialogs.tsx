@@ -1,4 +1,4 @@
-﻿import {
+import {
   CSSProperties,
   FormEvent,
   useEffect,
@@ -6,6 +6,7 @@
   useState,
 } from 'react';
 import {
+  AppWindow,
   Bell,
   Headphones,
   Image,
@@ -33,6 +34,8 @@ import {
 import { NativeDialog } from './NativeDialog';
 import { MemberShowcaseGrid } from './ItemDetailDialog';
 import type { SkinItem } from './SkinPickItem';
+import { detectGpuAndCapabilities, type DetectedGpuProfile } from '../lib/gpuCapabilities';
+import { CustomSelect } from './CustomSelect';
 
 export { NativeDialog } from './NativeDialog';
 export { ProfileEditDialog as ProfileDialog, type ProfileTab } from './ProfileEditDialog';
@@ -358,563 +361,8 @@ export function InviteDialog({
   );
 }
 
-type Role = {
-  id: number;
-  name: string;
-  color: string;
-  permissions: string[] | unknown;
-  is_default?: boolean;
-  hoist?: boolean;
-  member_card_color?: string | null;
-  border_color?: string | null;
-  border_effect?: string | null;
-  border_motion?: string | null;
-};
-
-export function ServerSettingsDialog({
-  open,
-  onClose,
-  serverId,
-  initial,
-  canManageRoles,
-  members = [],
-  initialTab = 'appearance',
-  onDone,
-}: {
-  open: boolean;
-  onClose: () => void;
-  serverId: number;
-  initial: {
-    name: string;
-    description: string;
-    is_listed: boolean;
-    icon_url: string;
-    banner_url: string;
-  };
-  canManageRoles: boolean;
-  members?: Array<{ id: number; label: string; role: string }>;
-  initialTab?: 'appearance' | 'roles';
-  onDone: () => void;
-}) {
-  const [tab, setTab] = useState<'appearance' | 'roles'>(initialTab);
-  const [name, setName] = useState(initial.name);
-  const [description, setDescription] = useState(initial.description);
-  const [listed, setListed] = useState(initial.is_listed);
-  const [iconUrl, setIconUrl] = useState(initial.icon_url);
-  const [bannerUrl, setBannerUrl] = useState(initial.banner_url);
-  const [error, setError] = useState('');
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [roleName, setRoleName] = useState('');
-  const [roleColor, setRoleColor] = useState('#949ba4');
-  const [cardColor, setCardColor] = useState('#5865f2');
-  const [borderColor, setBorderColor] = useState('#949ba4');
-  const [borderEffect, setBorderEffect] = useState('solid');
-  const [borderMotion, setBorderMotion] = useState('none');
-  const [hoist, setHoist] = useState(false);
-  const [perms, setPerms] = useState<string[]>([]);
-  const [assignUserId, setAssignUserId] = useState<number | ''>('');
-  const [assignRoleIds, setAssignRoleIds] = useState<number[]>([]);
-  const wasOpen = useRef(false);
-
-  // Só reseta abas/campos ao ABRIR o modal — `initial` muda a cada refetch do parent.
-  useEffect(() => {
-    if (open && !wasOpen.current) {
-      setTab(canManageRoles ? initialTab : 'appearance');
-      setName(initial.name);
-      setDescription(initial.description);
-      setListed(initial.is_listed);
-      setIconUrl(initial.icon_url);
-      setBannerUrl(initial.banner_url);
-      setError('');
-      setSelectedId(null);
-      setAssignUserId('');
-      setAssignRoleIds([]);
-    }
-    wasOpen.current = open;
-  }, [open, initial, initialTab, canManageRoles]);
-
-  async function loadRoles() {
-    const d = await api<{ roles: Role[] }>(`/api/community/servers/${serverId}/roles`);
-    setRoles(d.roles);
-    if (d.roles[0] && !selectedId) selectRole(d.roles[0]);
-  }
-
-  function selectRole(r: Role) {
-    setSelectedId(r.id);
-    setRoleName(r.name);
-    setRoleColor(r.color || '#949ba4');
-    setCardColor(r.member_card_color || '#5865f2');
-    setBorderColor(r.border_color || r.color || '#949ba4');
-    setBorderEffect(r.border_effect || 'solid');
-    setBorderMotion(r.border_motion || 'none');
-    setHoist(!!r.hoist);
-    setPerms(Array.isArray(r.permissions) ? (r.permissions as string[]) : []);
-  }
-
-  useEffect(() => {
-    if (open && tab === 'roles' && canManageRoles) {
-      void loadRoles().catch((e) => setError(e.message));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab, serverId, canManageRoles]);
-
-  async function saveAppearance(e: FormEvent) {
-    e.preventDefault();
-    setError('');
-    try {
-      await api(`/api/community/servers/${serverId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          name,
-          description,
-          is_listed: listed,
-          icon_url: iconUrl,
-          banner_url: bannerUrl,
-        }),
-      });
-      onDone();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro');
-    }
-  }
-
-  return (
-    <NativeDialog open={open} onClose={onClose} className="comm-dialog comm-dialog-server-settings">
-      <div className="comm-server-settings" onClick={(e) => e.stopPropagation()}>
-        <header className="comm-server-settings-head">
-          <div className="comm-server-settings-head-text">
-            <h2>Configurações do servidor</h2>
-            <p className="muted">Personalize a aparência, descoberta pública e cargos com permissões.</p>
-          </div>
-          <button type="button" className="comm-dialog-x" onClick={onClose} aria-label="Fechar">
-            <X size={18} />
-          </button>
-        </header>
-
-        <nav className="comm-settings-tabs comm-server-settings-tabs" role="tablist">
-          <button
-            type="button"
-            className={`comm-settings-tab${tab === 'appearance' ? ' is-on' : ''}`}
-            role="tab"
-            onClick={() => setTab('appearance')}
-          >
-            <Palette size={16} /> Aparência
-          </button>
-          {canManageRoles ? (
-            <button
-              type="button"
-              className={`comm-settings-tab${tab === 'roles' ? ' is-on' : ''}`}
-              role="tab"
-              onClick={() => setTab('roles')}
-            >
-              <Shield size={16} /> Cargos e permissões
-            </button>
-          ) : null}
-        </nav>
-
-        <div className="comm-server-settings-body">
-          {tab === 'appearance' ? (
-            <form className="comm-settings-panel comm-server-appearance" onSubmit={(e) => void saveAppearance(e)}>
-              <div className="comm-server-appearance-grid">
-                <div className="comm-server-appearance-fields">
-                  <label className="comm-field">
-                    <span className="comm-field-label">Nome do servidor</span>
-                    <input
-                      type="text"
-                      maxLength={80}
-                      required
-                      placeholder="Ex.: Equipe Comercial"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                  </label>
-                  <label className="comm-field">
-                    <span className="comm-field-label">Descrição (página Descobrir)</span>
-                    <textarea
-                      maxLength={500}
-                      rows={3}
-                      placeholder="Conte sobre o servidor…"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                    />
-                  </label>
-                  <label className="comm-check comm-server-listed">
-                    <input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} />
-                    <span>
-                      Aparecer na página <strong>Descobrir</strong> e aceitar solicitações de entrada
-                    </span>
-                  </label>
-                  <div className="comm-server-media-grid">
-                    <section className="comm-server-media-card">
-                      <h3 className="comm-field-label">
-                        <Image size={14} /> Ícone
-                      </h3>
-                      <div className="comm-server-media-inputs">
-                        <label className="comm-file-btn">
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/gif"
-                            hidden
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f)
-                                void uploadMedia(f, 'icon')
-                                  .then(setIconUrl)
-                                  .catch((err) => setError(err.message));
-                            }}
-                          />
-                          <Upload size={14} /> Enviar arquivo
-                        </label>
-                        <label className="comm-field comm-field-inline">
-                          <span className="comm-field-label">ou URL</span>
-                          <input
-                            type="text"
-                            inputMode="url"
-                            placeholder="https://… ou arquivo enviado"
-                            value={iconUrl}
-                            onChange={(e) => setIconUrl(e.target.value)}
-                          />
-                        </label>
-                      </div>
-                      <p className="comm-dialog-note muted">Quadrado · até 3 MB · JPG, PNG, WEBP ou GIF</p>
-                    </section>
-                    <section className="comm-server-media-card">
-                      <h3 className="comm-field-label">Banner</h3>
-                      <div className="comm-server-media-inputs">
-                        <label className="comm-file-btn">
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/gif"
-                            hidden
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f)
-                                void uploadMedia(f, 'banner')
-                                  .then(setBannerUrl)
-                                  .catch((err) => setError(err.message));
-                            }}
-                          />
-                          <Upload size={14} /> Enviar arquivo
-                        </label>
-                        <label className="comm-field comm-field-inline">
-                          <span className="comm-field-label">ou URL</span>
-                          <input
-                            type="text"
-                            inputMode="url"
-                            placeholder="https://… ou arquivo enviado"
-                            value={bannerUrl}
-                            onChange={(e) => setBannerUrl(e.target.value)}
-                          />
-                        </label>
-                      </div>
-                      <p className="comm-dialog-note muted">Recomendado ~960×240 · até 5 MB</p>
-                    </section>
-                  </div>
-                </div>
-                <aside className="comm-server-preview-card" aria-label="Pré-visualização">
-                  <p className="comm-field-label">Pré-visualização</p>
-                  <div className="comm-server-preview-mock">
-                    <div
-                      className={`comm-server-preview-banner${bannerUrl ? ' has-image' : ''}`}
-                      style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined}
-                    >
-                      {!bannerUrl ? <span className="muted">Banner do servidor</span> : null}
-                    </div>
-                    <div className="comm-server-preview-meta">
-                      {iconUrl ? (
-                        <img className="comm-server-preview-icon" src={iconUrl} alt="" />
-                      ) : (
-                        <div className="comm-server-preview-icon comm-server-preview-icon-ph">
-                          {name.slice(0, 1) || 'S'}
-                        </div>
-                      )}
-                      <div>
-                        <strong>{name || 'Nome do servidor'}</strong>
-                        <p className="muted">{description || 'Descrição aparece aqui…'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </aside>
-              </div>
-              {error ? <p className="comm-dialog-hint" style={{ color: 'var(--comm-danger)' }}>{error}</p> : null}
-              <div className="form-actions comm-server-settings-actions">
-                <button type="submit" className="btn btn-primary">
-                  <Save size={14} /> Salvar aparência
-                </button>
-                <button type="button" className="btn" onClick={onClose}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="comm-settings-panel comm-roles-panel">
-              <div className="comm-roles-layout">
-                <aside className="comm-roles-list-wrap">
-                  <div className="comm-roles-list-head">
-                    <span className="comm-label">Cargos do servidor</span>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-primary"
-                      onClick={() =>
-                        void api(`/api/community/servers/${serverId}/roles`, {
-                          method: 'POST',
-                          body: JSON.stringify({ name: 'Novo cargo', color: '#5865f2', permissions: [] }),
-                        }).then(() => loadRoles())
-                      }
-                    >
-                      + Novo
-                    </button>
-                  </div>
-                  <ul className="comm-roles-list">
-                    {roles.map((r) => (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          className={`comm-role-pick${selectedId === r.id ? ' is-on' : ''}`}
-                          onClick={() => selectRole(r)}
-                        >
-                          <span className="comm-role-dot" style={{ background: r.color || '#949ba4' }} />
-                          {r.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </aside>
-                <div className="comm-roles-editor-wrap">
-                  {selectedId ? (
-                    <div className="comm-roles-editor">
-                      <div className="comm-roles-editor-head">
-                        <label className="comm-field">
-                          <span className="comm-field-label">Nome do cargo</span>
-                          <input
-                            type="text"
-                            maxLength={64}
-                            value={roleName}
-                            onChange={(e) => setRoleName(e.target.value)}
-                          />
-                        </label>
-                        <div className="comm-roles-colors">
-                          <label className="comm-field comm-field-color">
-                            <span className="comm-field-label">Cor do cargo</span>
-                            <input type="color" value={roleColor} onChange={(e) => setRoleColor(e.target.value)} />
-                          </label>
-                          <label className="comm-field comm-field-color">
-                            <span className="comm-field-label">Cor do card (membros)</span>
-                            <div className="comm-color-row">
-                              <input type="color" value={cardColor} onChange={(e) => setCardColor(e.target.value)} />
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-ghost"
-                                onClick={() => setCardColor('#5865f2')}
-                              >
-                                Limpar
-                              </button>
-                            </div>
-                          </label>
-                          <label className="comm-field comm-field-color">
-                            <span className="comm-field-label">Cor da borda</span>
-                            <div className="comm-color-row">
-                              <input
-                                type="color"
-                                value={borderColor}
-                                onChange={(e) => setBorderColor(e.target.value)}
-                              />
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-ghost"
-                                onClick={() => setBorderColor(roleColor)}
-                              >
-                                Igual à cor
-                              </button>
-                            </div>
-                          </label>
-                        </div>
-                        <div className="comm-roles-border-fx">
-                          <label className="comm-field">
-                            <span className="comm-field-label">Efeito da borda</span>
-                            <select value={borderEffect} onChange={(e) => setBorderEffect(e.target.value)}>
-                              <option value="none">Nenhum</option>
-                              <option value="solid">Sólida</option>
-                              <option value="glow">Brilho</option>
-                              <option value="neon">Neon</option>
-                              <option value="double">Dupla</option>
-                            </select>
-                          </label>
-                          <label className="comm-field">
-                            <span className="comm-field-label">Movimento</span>
-                            <select value={borderMotion} onChange={(e) => setBorderMotion(e.target.value)}>
-                              <option value="none">Parado</option>
-                              <option value="pulse">Pulso</option>
-                              <option value="shimmer">Brilho deslizante</option>
-                              <option value="laser">Laser girando</option>
-                            </select>
-                          </label>
-                          <div className="comm-roles-border-preview" aria-hidden>
-                            <span
-                              className={`comm-member-name-cargo fx-${borderEffect} motion-${borderMotion}`}
-                              style={
-                                {
-                                  ['--cargo-color' as string]: roleColor,
-                                  ['--cargo-border-color' as string]: borderColor,
-                                } as CSSProperties
-                              }
-                            >
-                              {roleName || 'Prévia'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <label className="comm-check">
-                        <input type="checkbox" checked={hoist} onChange={(e) => setHoist(e.target.checked)} />
-                        <span>Destacar membros com este cargo na lista</span>
-                      </label>
-                      <p className="comm-label">Permissões</p>
-                      <div className="comm-perms-grid">
-                        {PERMISSION_GROUPS.map((g) => (
-                          <div key={g.group} className="comm-perms-group">
-                            <strong>{g.group}</strong>
-                            {g.permissions.map((p) => (
-                              <label key={p.key} className="comm-check">
-                                <input
-                                  type="checkbox"
-                                  checked={perms.includes(p.key)}
-                                  onChange={() =>
-                                    setPerms((prev) =>
-                                      prev.includes(p.key)
-                                        ? prev.filter((k) => k !== p.key)
-                                        : [...prev, p.key],
-                                    )
-                                  }
-                                />
-                                <span>{p.label}</span>
-                              </label>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="form-actions">
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={() =>
-                            void api(`/api/community/servers/${serverId}/roles/${selectedId}`, {
-                              method: 'PATCH',
-                              body: JSON.stringify({
-                                name: roleName,
-                                color: roleColor,
-                                permissions: perms,
-                                hoist,
-                                member_card_color: cardColor,
-                                border_color: borderColor,
-                                border_effect: borderEffect,
-                                border_motion: borderMotion,
-                              }),
-                            }).then(() => loadRoles())
-                          }
-                        >
-                          <Save size={14} /> Salvar cargo
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          onClick={() => {
-                            if (!confirm('Excluir cargo?')) return;
-                            void api(`/api/community/servers/${serverId}/roles/${selectedId}`, {
-                              method: 'DELETE',
-                            }).then(() => {
-                              setSelectedId(null);
-                              return loadRoles();
-                            });
-                          }}
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="comm-roles-empty-state">
-                      <Shield size={28} />
-                      <p>
-                        <strong>Selecione um cargo</strong> na lista ou crie um novo para editar permissões.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {members.length ? (
-                <div className="comm-roles-assign" style={{ marginTop: 16 }}>
-                  <p className="comm-label">Atribuir cargos a um membro</p>
-                  <div className="comm-roles-assign-row" style={{ display: 'grid', gap: 10 }}>
-                    <label className="comm-field">
-                      <span className="comm-field-label">Membro</span>
-                      <select
-                        value={assignUserId}
-                        onChange={(e) =>
-                          setAssignUserId(e.target.value ? Number(e.target.value) : '')
-                        }
-                      >
-                        <option value="">Selecione…</option>
-                        {members.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.label} ({m.role})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="comm-perms-grid">
-                      {roles.map((r) => (
-                        <label key={r.id} className="comm-check comm-role-assign">
-                          <input
-                            type="checkbox"
-                            checked={assignRoleIds.includes(r.id)}
-                            onChange={() =>
-                              setAssignRoleIds((prev) =>
-                                prev.includes(r.id)
-                                  ? prev.filter((id) => id !== r.id)
-                                  : [...prev, r.id],
-                              )
-                            }
-                          />
-                          <span className="comm-role-dot" style={{ background: r.color || '#949ba4' }} />
-                          <span>{r.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={!assignUserId}
-                      onClick={() => {
-                        if (!assignUserId) return;
-                        void api(
-                          `/api/community/servers/${serverId}/members/${assignUserId}/roles`,
-                          {
-                            method: 'PATCH',
-                            body: JSON.stringify({ role_ids: assignRoleIds }),
-                          },
-                        ).then(() => onDone());
-                      }}
-                    >
-                      Salvar atribuição
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              <div className="form-actions comm-server-settings-actions">
-                <button type="button" className="btn" onClick={onClose}>
-                  Fechar
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </NativeDialog>
-  );
-}
-
+import { ServerSettingsDialog, type Role } from './ServerSettingsDialog';
+export { ServerSettingsDialog, type Role };
 
 export function SettingsAudioDialog({
   open,
@@ -1012,25 +460,33 @@ export function SettingsAudioDialog({
             <p className="comm-dialog-hint">Microfone e saída de som usados na voz e ao assistir transmissões.</p>
             <label>
               Microfone
-              <select value={micId} onChange={(e) => setMicId(e.target.value)}>
-                <option value="">Padrão do sistema</option>
-                {mics.map((d) => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {d.label || `Mic ${d.deviceId.slice(0, 6)}`}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                value={micId}
+                onChange={(val) => setMicId(val)}
+                options={[
+                  { value: '', label: 'Padrão do sistema' },
+                  ...mics.map((d) => ({
+                    value: d.deviceId,
+                    label: d.label || `Mic ${d.deviceId.slice(0, 6)}`,
+                  })),
+                ]}
+                placeholder="Padrão do sistema"
+              />
             </label>
             <label>
               Alto-falante / fone
-              <select value={speakerId} onChange={(e) => setSpeakerId(e.target.value)}>
-                <option value="">Padrão do sistema</option>
-                {speakers.map((d) => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {d.label || `Out ${d.deviceId.slice(0, 6)}`}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                value={speakerId}
+                onChange={(val) => setSpeakerId(val)}
+                options={[
+                  { value: '', label: 'Padrão do sistema' },
+                  ...speakers.map((d) => ({
+                    value: d.deviceId,
+                    label: d.label || `Out ${d.deviceId.slice(0, 6)}`,
+                  })),
+                ]}
+                placeholder="Padrão do sistema"
+              />
             </label>
             <VoiceFilterControls
               micId={micId}
@@ -1279,6 +735,7 @@ export function ShareScreenDialog({
     publicWatchCustomNames: boolean;
     publicWatchChat: boolean;
     publicWatchChatPost: boolean;
+    sourceId?: string;
   }) => void;
 }) {
   const LS = {
@@ -1293,15 +750,51 @@ export function ShareScreenDialog({
   const [fps, setFps] = useState(30);
   const [audioMode, setAudioMode] = useState<'off' | 'app' | 'system'>('off');
   const [bitrateMode, setBitrateMode] = useState<'auto' | 'fixed'>('fixed');
+  const [videoCodec, setVideoCodec] = useState<'h264' | 'av1' | 'vp8'>('h264');
+  const [preset, setPreset] = useState<'eco' | 'balanced' | 'high' | 'custom'>('balanced');
   const [publicWatch, setPublicWatch] = useState(true);
   const [publicWatchMax, setPublicWatchMax] = useState(50);
   const [publicWatchCustomNames, setPublicWatchCustomNames] = useState(true);
   const [publicWatchChat, setPublicWatchChat] = useState(true);
   const [publicWatchChatPost, setPublicWatchChatPost] = useState(true);
+  const [gpuProfile, setGpuProfile] = useState<DetectedGpuProfile | null>(null);
+
+  // Seletor nativo de telas e janelas (RallyDesk)
+  const [sources, setSources] = useState<Array<{ id: string; name: string; thumbnailDataUrl?: string; kind?: string }>>([]);
+  const [sourceType, setSourceType] = useState<'screen' | 'window'>('screen');
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+  const [loadingSources, setLoadingSources] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     const isDesktop = typeof window !== 'undefined' && !!window.sfDesktop;
+
+    if (isDesktop && window.sfDesktop?.getPickerSources) {
+      setLoadingSources(true);
+      window.sfDesktop.getPickerSources().then((srcs: any) => {
+        if (Array.isArray(srcs) && srcs.length) {
+          setSources(srcs);
+          const firstScreen = srcs.find((s: any) => s.kind === 'screen' || s.id.startsWith('screen')) || srcs[0];
+          setSelectedSourceId(firstScreen.id);
+        }
+      }).catch(() => undefined).finally(() => setLoadingSources(false));
+    }
+
+    void detectGpuAndCapabilities().then((detected) => {
+      setGpuProfile(detected);
+      try {
+        const hasSaved = !!localStorage.getItem(LS.quality);
+        if (!hasSaved) {
+          setPreset(detected.preset);
+          setQuality(detected.quality);
+          setFps(detected.fps);
+          setVideoCodec(detected.videoCodec);
+          setBitrateMode(detected.bitrateMode);
+        }
+      } catch {
+        /* ignore */
+      }
+    });
     const defaultAudio: 'off' | 'app' | 'system' = isDesktop ? 'off' : 'app';
     try {
       setQuality(localStorage.getItem(LS.quality) || '720');
@@ -1352,6 +845,7 @@ export function ShareScreenDialog({
             publicWatchCustomNames,
             publicWatchChat,
             publicWatchChatPost,
+            sourceId: selectedSourceId || undefined,
           });
           onClose();
         }}
@@ -1361,8 +855,7 @@ export function ShareScreenDialog({
           <div>
             <h2>Configurar transmissão</h2>
             <p className="comm-dialog-hint">
-              Defina qualidade da tela e link público — o compartilhamento começa quando você
-              confirmar.
+              Escolha o que compartilhar e a qualidade desejada — a transmissão começa imediatamente.
             </p>
           </div>
         </header>
@@ -1399,6 +892,85 @@ export function ShareScreenDialog({
 
         {tab === 'community' ? (
           <div className="comm-live-wiz-panel is-on" role="tabpanel">
+            {/* Seletor Integrado de Fontes (Telas e Janelas) */}
+            <div className="comm-share-sources-wrap">
+              <div className="comm-share-sources-head">
+                <span>O que você quer transmitir?</span>
+                <div className="comm-share-sources-tabs">
+                  <button
+                    type="button"
+                    className={`comm-share-source-tab${sourceType === 'screen' ? ' is-on' : ''}`}
+                    onClick={() => setSourceType('screen')}
+                  >
+                    <Monitor size={14} /> Telas ({sources.filter((s) => s.kind === 'screen' || s.id.startsWith('screen')).length || 1})
+                  </button>
+                  <button
+                    type="button"
+                    className={`comm-share-source-tab${sourceType === 'window' ? ' is-on' : ''}`}
+                    onClick={() => setSourceType('window')}
+                  >
+                    <AppWindow size={14} /> Janelas ({sources.filter((s) => s.kind === 'window' || s.id.startsWith('window')).length})
+                  </button>
+                </div>
+              </div>
+
+              <div className="comm-share-grid">
+                {(() => {
+                  const filtered = sources.filter((s) =>
+                    sourceType === 'screen'
+                      ? s.kind === 'screen' || s.id.startsWith('screen')
+                      : s.kind === 'window' || s.id.startsWith('window')
+                  );
+                  if (!filtered.length) {
+                    if (sourceType === 'screen') {
+                      return (
+                        <div
+                          className={`comm-share-card is-selected`}
+                          onClick={() => setSelectedSourceId('screen:0')}
+                        >
+                          <div className="comm-share-thumb-placeholder">🖥️</div>
+                          <div className="comm-share-card-name">Monitor 1 (Principal)</div>
+                          <span className="comm-share-badge">✓ Selecionado</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div style={{ padding: '16px', color: '#64748b', fontSize: 13, gridColumn: '1 / -1', textAlign: 'center' }}>
+                        {loadingSources ? 'Carregando janelas...' : 'Nenhuma janela capturável encontrada no momento.'}
+                      </div>
+                    );
+                  }
+                  return filtered.map((s) => {
+                    const isSel = selectedSourceId === s.id;
+                    return (
+                      <div
+                        key={s.id}
+                        className={`comm-share-card${isSel ? ' is-selected' : ''}`}
+                        onClick={() => setSelectedSourceId(s.id)}
+                      >
+                        {s.thumbnailDataUrl ? (
+                          <img
+                            src={s.thumbnailDataUrl}
+                            alt={s.name}
+                            className="comm-share-thumb"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="comm-share-thumb-placeholder">
+                            {sourceType === 'screen' ? '🖥️' : '🪟'}
+                          </div>
+                        )}
+                        <div className="comm-share-card-name" title={s.name}>
+                          {s.name}
+                        </div>
+                        {isSel ? <span className="comm-share-badge">✓ Selecionado</span> : null}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
             <label className="comm-field">
               <span className="comm-field-label">Título da live</span>
               <input
@@ -1409,50 +981,154 @@ export function ShareScreenDialog({
                 onChange={(e) => setTitle(e.target.value)}
               />
             </label>
-            <div className="comm-live-share-quality">
-              <label className="comm-field">
-                <span className="comm-field-label">Resolução</span>
-                <select value={quality} onChange={(e) => setQuality(e.target.value)}>
-                  <option value="source">Fonte (nativo)</option>
-                  <option value="480">480p</option>
-                  <option value="720">720p</option>
-                  <option value="1080">1080p</option>
-                </select>
-              </label>
-              <label className="comm-field">
-                <span className="comm-field-label">FPS</span>
-                <select value={fps} onChange={(e) => setFps(Number(e.target.value))}>
-                  <option value={15}>15</option>
-                  <option value={30}>30</option>
-                  <option value={60}>60</option>
-                </select>
-              </label>
-              <label className="comm-field">
-                <span className="comm-field-label">Modo de bitrate</span>
-                <select
-                  value={bitrateMode}
-                  onChange={(e) => setBitrateMode(e.target.value as 'auto' | 'fixed')}
+            {gpuProfile ? (
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  marginBottom: 12,
+                  fontSize: 13,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 4,
+                  }}
                 >
-                  <option value="fixed">Fixo (recomendado)</option>
-                  <option value="auto">Automático</option>
-                </select>
-              </label>
+                  <span style={{ fontWeight: 600, color: '#f3f4f6' }}>
+                    🎮 GPU: {gpuProfile.gpu.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      padding: '2px 8px',
+                      borderRadius: 12,
+                      background:
+                        gpuProfile.badgeTone === 'emerald'
+                          ? 'rgba(16, 185, 129, 0.2)'
+                          : gpuProfile.badgeTone === 'amber'
+                          ? 'rgba(245, 158, 11, 0.2)'
+                          : 'rgba(59, 130, 246, 0.2)',
+                      color:
+                        gpuProfile.badgeTone === 'emerald'
+                          ? '#34d399'
+                          : gpuProfile.badgeTone === 'amber'
+                          ? '#fbbf24'
+                          : '#60a5fa',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {gpuProfile.gpu.encoderTier.toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ color: '#9ca3af', fontSize: 12, lineHeight: 1.4 }}>
+                  {gpuProfile.reason}
+                </div>
+              </div>
+            ) : null}
+            <div className="comm-field" style={{ marginBottom: 12 }}>
+              <span className="comm-field-label">Perfil Automático de Transmissão (Multi-GPU / CS2)</span>
+              <CustomSelect
+                value={preset}
+                onChange={(val) => {
+                  const p = val as 'eco' | 'balanced' | 'high' | 'custom';
+                  setPreset(p);
+                  if (p === 'eco') {
+                    setQuality('720');
+                    setFps(30);
+                    setVideoCodec('h264');
+                    setBitrateMode('auto');
+                  } else if (p === 'balanced') {
+                    setQuality('1080');
+                    setFps(gpuProfile?.fps || 30);
+                    setVideoCodec('h264');
+                    setBitrateMode('fixed');
+                  } else if (p === 'high') {
+                    setQuality('1080');
+                    setFps(60);
+                    setVideoCodec('h264');
+                    setBitrateMode('fixed');
+                  }
+                }}
+                options={[
+                  { value: 'balanced', label: 'Equilibrado (1080p 30/60 FPS • H.264 NVENC / VCN)' },
+                  { value: 'eco', label: 'Econômico (720p 30 FPS • H.264 Adaptativo - Baixo Consumo / APUs)' },
+                  { value: 'high', label: 'Alta Qualidade (1080p 60 FPS • H.264 / AV1 HW)' },
+                  { value: 'custom', label: 'Personalizado' },
+                ]}
+              />
+            </div>
+            <div className="comm-field" style={{ marginBottom: 10 }}>
+              <span className="comm-field-label">Codec de Vídeo WebRTC</span>
+              <CustomSelect
+                value={videoCodec}
+                onChange={(val) => setVideoCodec(val as 'h264' | 'av1' | 'vp8')}
+                options={[
+                  { value: 'h264', label: 'H.264 (Acelerado por HW • NVENC / AMF / MFT - Padrão)' },
+                  { value: 'av1', label: 'AV1 (Alta Eficiência • RTX 40 Series / Intel Arc)' },
+                  { value: 'vp8', label: 'VP8 (Software Fallback)' },
+                ]}
+              />
+            </div>
+            <div className="comm-live-share-quality">
+              <div className="comm-field">
+                <span className="comm-field-label">Resolução</span>
+                <CustomSelect
+                  value={quality}
+                  onChange={(val) => setQuality(val)}
+                  options={[
+                    { value: 'source', label: 'Fonte (nativo)' },
+                    { value: '480', label: '480p' },
+                    { value: '720', label: '720p' },
+                    { value: '1080', label: '1080p' },
+                  ]}
+                />
+              </div>
+              <div className="comm-field">
+                <span className="comm-field-label">FPS</span>
+                <CustomSelect
+                  value={String(fps)}
+                  onChange={(val) => setFps(Number(val))}
+                  options={[
+                    { value: '15', label: '15' },
+                    { value: '30', label: '30' },
+                    { value: '60', label: '60' },
+                  ]}
+                />
+              </div>
+              <div className="comm-field">
+                <span className="comm-field-label">Modo de bitrate</span>
+                <CustomSelect
+                  value={bitrateMode}
+                  onChange={(val) => setBitrateMode(val as 'auto' | 'fixed')}
+                  options={[
+                    { value: 'fixed', label: 'Fixo (recomendado)' },
+                    { value: 'auto', label: 'Automático' },
+                  ]}
+                />
+              </div>
             </div>
             <p className="comm-dialog-note muted">
               A resolução e o FPS escolhidos ficam travados na transmissão. Em &quot;Automático&quot;,
               só o bitrate pode variar — a imagem não muda sozinha para outra qualidade.
             </p>
-            <label className="comm-field">
+            <div className="comm-field">
               <span className="comm-field-label">Áudio da tela</span>
-              <select
+              <CustomSelect
                 value={audioMode}
-                onChange={(e) => setAudioMode(e.target.value as 'off' | 'app' | 'system')}
-              >
-                <option value="off">Desligado</option>
-                <option value="app">Só da janela / aplicativo</option>
-                <option value="system">Sistema inteiro (pode causar eco)</option>
-              </select>
-            </label>
+                onChange={(val) => setAudioMode(val as 'off' | 'app' | 'system')}
+                options={[
+                  { value: 'off', label: 'Desligado' },
+                  { value: 'app', label: 'Só da janela / aplicativo' },
+                  { value: 'system', label: 'Sistema inteiro (pode causar eco)' },
+                ]}
+              />
+            </div>
             <p className="comm-dialog-note muted">
               No desktop o padrão é <strong>só vídeo</strong> (a call de voz fica estável). Áudio da
               app/sistema via WASAPI é opcional — pode mutar a voz nalgumas máquinas. Escolhe uma{' '}

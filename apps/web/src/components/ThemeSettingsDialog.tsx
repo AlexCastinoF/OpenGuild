@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { NativeDialog } from './NativeDialog';
+import { CustomSelect } from './CustomSelect';
 import { api } from '../lib/api';
 import { useBrandStore } from '../store/brand';
 
@@ -1306,16 +1307,14 @@ export function ThemeSettingsDialog({
                     <strong>Família da fonte</strong>
                     <span>Veja o resultado na prévia acima</span>
                   </div>
-                  <select
+                  <CustomSelect
                     value={chrome.font_family || ''}
-                    onChange={(e) => patchChrome({ font_family: e.target.value })}
-                  >
-                    {FONT_PRESETS.map((f) => (
-                      <option key={f.id || 'default'} value={f.id}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => patchChrome({ font_family: val })}
+                    options={FONT_PRESETS.map((f) => ({
+                      value: f.id,
+                      label: f.label,
+                    }))}
+                  />
                   <div className="theme-font-samples">
                     {FONT_PRESETS.filter((f) => f.id).map((f) => (
                       <button

@@ -547,10 +547,15 @@ export function YoutubePlayerHost() {
           rel: 0,
           modestbranding: 1,
           playsinline: 1,
-          origin: window.location.origin,
+          origin: window.location.origin && !window.location.origin.includes('localhost') ? window.location.origin : 'https://www.youtube.com',
+          widget_referrer: 'https://www.youtube.com',
           enablejsapi: 1,
         },
         events: {
+          onError: (ev: { data: number }) => {
+            console.warn('[YoutubePlayerHost] YouTube error code:', ev?.data);
+            window.setTimeout(() => advanceFromEnded(), 800);
+          },
           onReady: () => {
             readyRef.current = true;
             const st = useYoutubePlayerStore.getState();

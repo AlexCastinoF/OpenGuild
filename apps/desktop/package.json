@@ -1,14 +1,17 @@
 {
   "name": "@steamfarm/desktop",
   "version": "1.2.43",
-  "description": "SteamFarm Comunidade — app desktop",
+  "description": "RallyDesk — app desktop",
   "main": "main.js",
-  "author": "SteamFarm",
+  "author": "RallyDesk",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "dev:tauri": "tauri dev",
+    "build:tauri": "tauri build",
+    "tauri": "tauri",
     "build:cs2-plugin": "node scripts/build-cs2-plugin.js",
     "publish:match-pack": "node scripts/publish-match-pack.js",
     "pack": "electron-builder --dir",
@@ -19,7 +22,7 @@
   },
   "build": {
     "appId": "app.openguild.desktop",
-    "productName": "SteamFarm Comunidade",
+    "productName": "RallyDesk",
     "electronVersion": "35.7.5",
     "npmRebuild": false,
     "directories": {
@@ -80,14 +83,14 @@
         "nsis"
       ],
       "icon": "assets/icon.ico",
-      "artifactName": "SteamFarm-Comunidade-${version}-${arch}.${ext}",
+      "artifactName": "RallyDesk-${version}-${arch}.${ext}",
       "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "SteamFarm Comunidade",
+      "shortcutName": "RallyDesk",
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
       "installerHeaderIcon": "assets/icon.ico"
@@ -100,6 +103,7 @@
     "loopback-capture": "^2.0.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
     "electron": "^35.0.0",
     "electron-builder": "^25.1.8",
     "rcedit": "^5.0.2"

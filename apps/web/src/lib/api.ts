@@ -5,11 +5,30 @@ export class ApiError extends Error {
   }
 }
 
+export function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const isTauri =
+      window.location.protocol === 'tauri:' ||
+      window.location.hostname.includes('tauri.localhost') ||
+      (window.location.hostname === 'localhost' && !window.location.port);
+    if (isTauri) {
+      return 'http://127.0.0.1:8014';
+    }
+  }
+  return '';
+}
+
 export async function api<T = Record<string, unknown>>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(path, {
+  const base = getApiBaseUrl();
+  const fullPath =
+    path.startsWith('http://') || path.startsWith('https://')
+      ? path
+      : `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+
+  const res = await fetch(fullPath, {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',

@@ -1,0 +1,215 @@
+/* ==========================================================================
+   CustomSelect — Componente Dropdown Dark Moderno Integrado ao App
+   ========================================================================== */
+
+.custom-select-container {
+  position: relative;
+  width: 100%;
+  user-select: none;
+  font-family: inherit;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius, 8px);
+  padding: 0 12px;
+  color: var(--text, #e8eef9);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-select-trigger:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.custom-select-trigger:focus-visible,
+.custom-select-container.is-open .custom-select-trigger {
+  border-color: var(--accent, #66c0f4);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #66c0f4) 25%, transparent);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.custom-select-container.is-disabled .custom-select-trigger {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.custom-select-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-select-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-muted, #8ea2c0);
+}
+
+.custom-select-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted, #8ea2c0);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease;
+}
+
+.custom-select-container.is-open .custom-select-arrow,
+.custom-select-arrow.is-rotated {
+  transform: rotate(180deg);
+  color: var(--accent, #66c0f4);
+}
+
+/* ================= Dropdown Menu ================= */
+
+.custom-select-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #0d1522;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius, 10px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 4px 12px rgba(0, 0, 0, 0.45);
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: customSelectFadeIn 0.12s cubic-bezier(0, 0, 0.2, 1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.custom-select-menu.opens-down {
+  top: calc(100% + 5px);
+}
+
+.custom-select-menu.opens-up {
+  bottom: calc(100% + 5px);
+}
+
+@keyframes customSelectFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Scrollbar fina para o dropdown */
+.custom-select-menu::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-select-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-select-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.custom-select-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* ================= Opções ================= */
+
+.custom-select-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text, #c9d7ec);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  outline: none;
+}
+
+.custom-select-option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.custom-select-option.is-selected {
+  background: color-mix(in srgb, var(--accent, #66c0f4) 16%, transparent);
+  color: var(--accent, #66c0f4);
+  font-weight: 600;
+}
+
+.custom-select-option.is-selected:hover {
+  background: color-mix(in srgb, var(--accent, #66c0f4) 24%, transparent);
+  color: #ffffff;
+}
+
+.custom-select-option.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.custom-select-option-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.custom-select-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.custom-select-option-sublabel {
+  font-size: 11px;
+  color: var(--text-muted, #8ea2c0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select-check {
+  flex-shrink: 0;
+  color: var(--accent, #66c0f4);
+}
+
+.custom-select-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted, #8ea2c0);
+}

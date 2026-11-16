@@ -11,8 +11,8 @@ export type BrandInfo = {
 };
 
 const FALLBACK: BrandInfo = {
-  name: 'SteamFarm Comunidade',
-  short_name: 'SteamFarm',
+  name: 'RallyDesk',
+  short_name: 'RallyDesk',
   logo_url: '/logo.png',
   favicon_url: '/logo.png',
   app_icon_url: '',

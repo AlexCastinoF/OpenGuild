@@ -1,4 +1,5 @@
 import {
+  ConnectionState,
   LocalAudioTrack,
   LocalVideoTrack,
   RemoteAudioTrack,
@@ -24,9 +25,26 @@ import {
   voiceWebAudioStats,
 } from '../lib/remoteVoiceWebAudio';
 import { scaleScreenTrack } from '../lib/scaleScreenTrack';
-import { playVoiceJoinChime } from '../lib/voiceJoinChime';
+import {
+  playVoiceJoinChime,
+  playMicMuteSound,
+  playMicUnmuteSound,
+  playVoiceLeaveChime,
+} from '../lib/voiceJoinChime';
 import { createVoiceMicTrack } from '../lib/deepFilterMic';
 import type { AudioDevicePrefs } from '../components/AudioSettingsDialog';
+import { useAuthStore } from '../store/auth';
+import {
+  WebRTCMetricsCollector,
+  BenchmarkRunner,
+  CrashDiagnostics,
+  ResourceLifecycleManager,
+  DeviceRecoveryManager,
+  AudioBudgetMonitor,
+  PerformancePolicyEngine,
+  AdaptiveAudioEngine,
+  MediaQualityController,
+} from '../voice/engine';
 
 export type StageParticipant = {
   id: string;
@@ -42,8 +60,11 @@ export type StageParticipant = {
 export type ShareScreenOpts = {
   quality?: string;
   fps?: number;
+  sourceId?: string;
   audioMode?: 'off' | 'app' | 'system';
   bitrateMode?: 'auto' | 'fixed';
+  videoCodec?: 'h264' | 'av1' | 'vp8' | 'vp9';
+  preset?: 'eco' | 'balanced' | 'high' | 'custom';
   title?: string;
   publicWatch?: boolean;
   publicWatchMax?: number;
@@ -308,11 +329,174 @@ export function useLiveKitRoom(
   const screenScalerStopRef = useRef<(() => void) | null>(null);
   /** Evita teardown de áudio remoto durante getDisplayMedia (senão a call fica muda). */
   const shareAudioLockRef = useRef(false);
+  /** Guarda a track de tela local quando em modo mock/dev para visualização sem SFU externo. */
+  const localMockScreenTrackRef = useRef<Track | null>(null);
   const sharingRef = useRef(false);
   const shareKeepAliveRef = useRef<number | null>(null);
   const webContentsMutedRef = useRef<boolean | null>(null);
   /** Auto-liga slider Tela uma vez quando alguém começa a transmitir (não reescreve escolha do user). */
   const autoScreenVolOnceRef = useRef(new Set<string>());
+
+  /** Coletor de Métricas e Runner de Benchmarks (RFC v3.0 - Etapa 1) */
+  const metricsCollectorRef = useRef<WebRTCMetricsCollector | null>(null);
+  if (!metricsCollectorRef.current) {
+    metricsCollectorRef.current = new WebRTCMetricsCollector();
+  }
+  const benchmarkRunnerRef = useRef<BenchmarkRunner | null>(null);
+  if (!benchmarkRunnerRef.current) {
+    benchmarkRunnerRef.current = new BenchmarkRunner(metricsCollectorRef.current);
+  }
+
+  /** Gerenciador de Ciclo de Vida e Resiliência (RFC v3.0 - Etapa 2) */
+  const lifecycleManagerRef = useRef<ResourceLifecycleManager | null>(null);
+  if (!lifecycleManagerRef.current) {
+    lifecycleManagerRef.current = new ResourceLifecycleManager('livekit-room');
+  }
+
+  const switchMicDeviceDelegateRef = useRef<((prefs?: AudioDevicePrefs | null) => Promise<void>) | null>(null);
+  const applyAudioOutputDelegateRef = useRef<((sink?: string) => Promise<void>) | null>(null);
+
+  const deviceRecoveryManagerRef = useRef<DeviceRecoveryManager | null>(null);
+  if (!deviceRecoveryManagerRef.current) {
+    deviceRecoveryManagerRef.current = new DeviceRecoveryManager({
+      onInputDeviceLost: async (fallbackId) => {
+        voiceLog('DeviceRecovery', { event: 'onInputDeviceLost', fallbackId });
+        try {
+          const currentPrefs = prefsRef.current;
+          await switchMicDeviceDelegateRef.current?.({
+            micId: fallbackId,
+            speakerId: currentPrefs?.speakerId || '',
+            noiseFilter: currentPrefs?.noiseFilter ?? true,
+            noiseEngine: currentPrefs?.noiseEngine ?? 'deepfilter',
+            noiseLevel: currentPrefs?.noiseLevel ?? 100,
+            echoCancellation: currentPrefs?.echoCancellation ?? true,
+          });
+        } catch (e) {
+          CrashDiagnostics.instance.record('device', 'error', 'fallback_mic_failed', { error: String(e) });
+        }
+      },
+      onPreferredInputReconnected: async (preferredId) => {
+        voiceLog('DeviceRecovery', { event: 'onPreferredInputReconnected', preferredId });
+        try {
+          const currentPrefs = prefsRef.current;
+          await switchMicDeviceDelegateRef.current?.({
+            micId: preferredId,
+            speakerId: currentPrefs?.speakerId || '',
+            noiseFilter: currentPrefs?.noiseFilter ?? true,
+            noiseEngine: currentPrefs?.noiseEngine ?? 'deepfilter',
+            noiseLevel: currentPrefs?.noiseLevel ?? 100,
+            echoCancellation: currentPrefs?.echoCancellation ?? true,
+          });
+        } catch (e) {
+          CrashDiagnostics.instance.record('device', 'error', 'preferred_mic_restore_failed', { error: String(e) });
+        }
+      },
+      onOutputDeviceLost: async (fallbackId) => {
+        voiceLog('DeviceRecovery', { event: 'onOutputDeviceLost', fallbackId });
+        try {
+          await applyAudioOutputDelegateRef.current?.(fallbackId);
+        } catch (e) {
+          CrashDiagnostics.instance.record('device', 'error', 'fallback_output_failed', { error: String(e) });
+        }
+      },
+      onPreferredOutputReconnected: async (preferredId) => {
+        voiceLog('DeviceRecovery', { event: 'onPreferredOutputReconnected', preferredId });
+        try {
+          await applyAudioOutputDelegateRef.current?.(preferredId);
+        } catch (e) {
+          CrashDiagnostics.instance.record('device', 'error', 'preferred_output_restore_failed', { error: String(e) });
+        }
+      },
+      onTrackMutedAnomaly: async () => {
+        voiceLog('DeviceRecovery', { event: 'onTrackMutedAnomaly' });
+        try {
+          const currentPrefs = prefsRef.current;
+          await switchMicDeviceDelegateRef.current?.(currentPrefs);
+        } catch (e) {
+          CrashDiagnostics.instance.record('device', 'error', 'anomaly_restart_failed', { error: String(e) });
+        }
+      },
+    });
+  }
+
+  /** PerformanceGuardian & Monitoramento de Deadline de Áudio (RFC v3.0 - Etapa 3) */
+  const audioBudgetMonitorRef = useRef<AudioBudgetMonitor | null>(null);
+  if (!audioBudgetMonitorRef.current) {
+    audioBudgetMonitorRef.current = new AudioBudgetMonitor();
+  }
+
+  const policyEngineRef = useRef<PerformancePolicyEngine | null>(null);
+  if (!policyEngineRef.current) {
+    policyEngineRef.current = new PerformancePolicyEngine(audioBudgetMonitorRef.current);
+  }
+
+  /** AdaptiveAudioEngine com Equal-Power Crossfade (RFC v3.0 - Etapa 4) */
+  const adaptiveAudioEngineRef = useRef<AdaptiveAudioEngine | null>(null);
+  if (!adaptiveAudioEngineRef.current) {
+    adaptiveAudioEngineRef.current = new AdaptiveAudioEngine({
+      sampleRate: 48000,
+      budgetMonitor: audioBudgetMonitorRef.current ?? undefined,
+    });
+  }
+
+  /** MediaQualityController com Dynacast e reconexão em 5 fases (RFC v3.0 - Etapa 8) */
+  const mediaQualityControllerRef = useRef<MediaQualityController | null>(null);
+  if (!mediaQualityControllerRef.current) {
+    mediaQualityControllerRef.current = new MediaQualityController({
+      priorityMode: 'extreme_performance',
+      onReconnectionPhaseChange: (phase, attempt) => {
+        voiceLog('ReconnectionPhase', { phase, attempt });
+      },
+      onQualityAdjusted: (profile, reason) => {
+        voiceLog('QualityAdjusted', { profile: profile.name, reason });
+      },
+    });
+  }
+
+  useEffect(() => {
+    deviceRecoveryManagerRef.current?.start();
+    policyEngineRef.current?.startListeningNativeGuardian();
+
+    const unsubPolicy = policyEngineRef.current?.subscribe(async (newPolicy) => {
+      voiceLog('PolicyEngine', { transition: newPolicy.name, level: newPolicy.level });
+      try {
+        // 1. Transição inaudível via Equal-Power Crossfade (20ms)
+        if (adaptiveAudioEngineRef.current) {
+          await adaptiveAudioEngineRef.current.transitionTo(newPolicy.noiseEngine);
+        }
+
+        const curPrefs = prefsRef.current;
+        if (curPrefs && curPrefs.noiseEngine !== newPolicy.noiseEngine) {
+          await switchMicDeviceDelegateRef.current?.({
+            ...curPrefs,
+            noiseEngine: newPolicy.noiseEngine,
+          });
+        }
+
+        // 2. Aplicação de parâmetros Opus no sender (DTX, FEC e Bitrate)
+        const micPub = roomRef.current?.localParticipant?.getTrackPublication(Track.Source.Microphone);
+        const sender = micPub?.track?.sender;
+        if (sender && adaptiveAudioEngineRef.current) {
+          await adaptiveAudioEngineRef.current.applySenderPolicy(sender, newPolicy);
+        }
+
+        // 3. Notificação do MediaQualityController para adaptação de vídeo e Dynacast
+        mediaQualityControllerRef.current?.onDegradationLevelChanged(newPolicy.level, newPolicy.name);
+      } catch (err) {
+        CrashDiagnostics.instance.record('hardware', 'error', 'apply_policy_error', { error: String(err) });
+      }
+    });
+
+    return () => {
+      unsubPolicy?.();
+      policyEngineRef.current?.stop();
+      deviceRecoveryManagerRef.current?.stop();
+      metricsCollectorRef.current?.dispose();
+      mediaQualityControllerRef.current?.dispose();
+      void adaptiveAudioEngineRef.current?.dispose();
+      void lifecycleManagerRef.current?.disposeAll();
+    };
+  }, []);
 
   useEffect(() => {
     sharingRef.current = sharing;
@@ -580,12 +764,21 @@ export function useLiveKitRoom(
     }
   }, []);
 
+  useEffect(() => {
+    applyAudioOutputDelegateRef.current = async (sink) => {
+      await applySpeaker(audioEls.current.map((x) => x.el), sink);
+    };
+  }, [applySpeaker]);
+
   const hardDisconnect = useCallback(async (
     leaveServerId?: number | null,
     opts?: { notifyServer?: boolean },
   ) => {
     const room = roomRef.current;
     roomRef.current = null;
+    metricsCollectorRef.current?.attachRoom(null);
+    metricsCollectorRef.current?.stop();
+    void lifecycleManagerRef.current?.disposeAll();
     chimeReady.current = false;
     const dfDispose = deepFilterDisposeRef.current;
     deepFilterDisposeRef.current = null;
@@ -598,6 +791,14 @@ export function useLiveKitRoom(
       }
     }
     stopScreenScaler();
+    if (localMockScreenTrackRef.current) {
+      try {
+        localMockScreenTrackRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+      localMockScreenTrackRef.current = null;
+    }
     if (shareKeepAliveRef.current != null) {
       window.clearInterval(shareKeepAliveRef.current);
       shareKeepAliveRef.current = null;
@@ -648,6 +849,7 @@ export function useLiveKitRoom(
         body: '{}',
       }).catch(() => undefined);
     }
+    void playVoiceLeaveChime();
     setConnected(false);
     setParticipants([]);
     setSharing(false);
@@ -703,6 +905,9 @@ export function useLiveKitRoom(
       let screen: Track | undefined;
       for (const pub of local.videoTrackPublications.values()) {
         if (pub.source === Track.Source.ScreenShare && pub.track) screen = pub.track;
+      }
+      if (!screen && localMockScreenTrackRef.current) {
+        screen = localMockScreenTrackRef.current;
       }
       push(
         local.identity,
@@ -1040,8 +1245,18 @@ export function useLiveKitRoom(
       await hardDisconnect(leaveServerId, { notifyServer: false });
       if (cancelled || gen !== connectGen.current) return;
 
-      const room = new Room({ adaptiveStream: true, dynacast: true });
+      const room = new Room({
+        adaptiveStream: true,
+        dynacast: true,
+        publishDefaults: {
+          videoCodec: 'h264',
+          backupCodec: true,
+        },
+      });
       roomRef.current = room;
+      metricsCollectorRef.current?.attachRoom(room);
+      metricsCollectorRef.current?.start(500);
+      mediaQualityControllerRef.current?.attachRoom(room);
       try {
         const data = await api<{ url: string; token: string; avatar_url?: string }>(
           `/api/community/channels/${channelId}/livekit-token`,
@@ -1106,7 +1321,74 @@ export function useLiveKitRoom(
           }
           attachRemoteAudio(room);
         });
-        await room.connect(data.url, data.token);
+        room.on(RoomEvent.Reconnecting, () => {
+          mediaQualityControllerRef.current?.startReconnection('RoomEvent.Reconnecting');
+        });
+        room.on(RoomEvent.Reconnected, () => {
+          mediaQualityControllerRef.current?.onReconnectionSuccess();
+        });
+        const isMock = !data.url || data.url.startsWith('mock') || (data.token && data.token.startsWith('mock'));
+        if (isMock) {
+          // Fallback / mock de voz em ambiente de desenvolvimento sem SFU externo
+          try {
+            const prefs = prefsRef.current;
+            const mic = await createVoiceMicTrack(prefs);
+            deepFilterDisposeRef.current = mic.dispose;
+            deepFilterSetLevelRef.current = mic.setNoiseLevel;
+          } catch {
+            /* microfone opcional em dev mock */
+          }
+          const authUser = useAuthStore.getState().user;
+          const selfPart: StageParticipant = {
+            id: String(authUser?.id || '1'),
+            name: authUser?.label || authUser?.username || 'Você',
+            avatarUrl: authUser?.avatar_url || data.avatar_url || '',
+            speaking: false,
+            muted: false,
+            hasScreen: false,
+            isLocal: true,
+          };
+          setConnected(true);
+          setMicOn(true);
+          setDeafened(false);
+          setParticipants([selfPart]);
+          setError('');
+          chimeReady.current = true;
+          void playVoiceJoinChime();
+          return;
+        }
+
+        try {
+          await room.connect(data.url, data.token);
+        } catch (connErr) {
+          console.warn('[useLiveKitRoom] LiveKit server connection failed, falling back to local stage:', connErr);
+          try {
+            const prefs = prefsRef.current;
+            const mic = await createVoiceMicTrack(prefs);
+            deepFilterDisposeRef.current = mic.dispose;
+            deepFilterSetLevelRef.current = mic.setNoiseLevel;
+          } catch {
+            /* microfone opcional em fallback */
+          }
+          const authUser = useAuthStore.getState().user;
+          const selfPart: StageParticipant = {
+            id: String(authUser?.id || '1'),
+            name: authUser?.label || authUser?.username || 'Você',
+            avatarUrl: authUser?.avatar_url || data.avatar_url || '',
+            speaking: false,
+            muted: false,
+            hasScreen: false,
+            isLocal: true,
+          };
+          setConnected(true);
+          setMicOn(true);
+          setDeafened(false);
+          setParticipants([selfPart]);
+          setError('');
+          chimeReady.current = true;
+          void playVoiceJoinChime();
+          return;
+        }
         if (cancelled || gen !== connectGen.current) {
           await room.disconnect(true).catch(() => undefined);
           return;
@@ -1122,6 +1404,14 @@ export function useLiveKitRoom(
         }
         deepFilterDisposeRef.current = mic.dispose;
         deepFilterSetLevelRef.current = mic.setNoiseLevel;
+        if (mic.track.mediaStreamTrack) {
+          lifecycleManagerRef.current?.trackMediaStreamTrack(mic.track.mediaStreamTrack);
+          deviceRecoveryManagerRef.current?.watchInputTrack(mic.track.mediaStreamTrack);
+          deviceRecoveryManagerRef.current?.setActiveDevices(
+            { activeId: prefs?.micId || 'default', preferredId: prefs?.micId || 'default' },
+            { activeId: prefs?.speakerId || 'default', preferredId: prefs?.speakerId || 'default' },
+          );
+        }
         if (mic.deepFilter) {
           voiceLog('DeepFilterMic', { enabled: true, engine: mic.engine });
         }
@@ -1575,47 +1865,75 @@ export function useLiveKitRoom(
     if (!room) return;
     const prefs = override ?? prefsRef.current;
     if (override) prefsRef.current = override;
-    const prevDispose = deepFilterDisposeRef.current;
-    deepFilterDisposeRef.current = null;
-    deepFilterSetLevelRef.current = () => undefined;
-    if (prevDispose) {
-      try {
-        await prevDispose();
-      } catch {
-        /* ignore */
-      }
-    }
-    for (const pub of room.localParticipant.audioTrackPublications.values()) {
-      // Só o mic — não despublicar áudio de partilha de ecrã
-      if (pub.source === Track.Source.ScreenShareAudio) continue;
-      if (pub.track) await room.localParticipant.unpublishTrack(pub.track);
-    }
-    const mic = await createVoiceMicTrack(prefs);
-    deepFilterDisposeRef.current = mic.dispose;
-    deepFilterSetLevelRef.current = mic.setNoiseLevel;
-    const openedId = mic.track.mediaStreamTrack?.getSettings?.()?.deviceId || '';
-    voiceLog('switchMicDevice', {
-      want: prefs?.micId || '(default)',
-      opened: openedId || '(unknown)',
-      deepFilter: mic.deepFilter,
-      engine: mic.engine,
-    });
-    if (mic.deepFilter) {
-      voiceLog('DeepFilterMic', { enabled: true, engine: mic.engine, reason: 'switchMic' });
-    }
-    await room.localParticipant.publishTrack(mic.track);
-    if (prefs?.micId && typeof room.switchActiveDevice === 'function') {
-      try {
-        await room.switchActiveDevice('audioinput', prefs.micId);
-      } catch {
-        /* ignore */
-      }
-    }
-    setMicOn(true);
-    setDeafened(false);
-    deafenedRef.current = false;
-    applyAllAudioOutput();
+
+    return lifecycleManagerRef.current?.acquire(
+      async (signal) => {
+        const prevDispose = deepFilterDisposeRef.current;
+        deepFilterDisposeRef.current = null;
+        deepFilterSetLevelRef.current = () => undefined;
+        if (prevDispose) {
+          try {
+            await prevDispose();
+          } catch {
+            /* ignore */
+          }
+        }
+        if (signal.aborted) return;
+
+        for (const pub of room.localParticipant.audioTrackPublications.values()) {
+          // Só o mic — não despublicar áudio de partilha de ecrã
+          if (pub.source === Track.Source.ScreenShareAudio) continue;
+          if (pub.track) await room.localParticipant.unpublishTrack(pub.track);
+        }
+        if (signal.aborted) return;
+
+        const mic = await createVoiceMicTrack(prefs);
+        if (signal.aborted) {
+          await mic.dispose().catch(() => undefined);
+          mic.track.stop();
+          return;
+        }
+
+        deepFilterDisposeRef.current = mic.dispose;
+        deepFilterSetLevelRef.current = mic.setNoiseLevel;
+        const openedId = mic.track.mediaStreamTrack?.getSettings?.()?.deviceId || '';
+        voiceLog('switchMicDevice', {
+          want: prefs?.micId || '(default)',
+          opened: openedId || '(unknown)',
+          deepFilter: mic.deepFilter,
+          engine: mic.engine,
+        });
+        if (mic.deepFilter) {
+          voiceLog('DeepFilterMic', { enabled: true, engine: mic.engine, reason: 'switchMic' });
+        }
+
+        if (mic.track.mediaStreamTrack) {
+          lifecycleManagerRef.current?.trackMediaStreamTrack(mic.track.mediaStreamTrack);
+          deviceRecoveryManagerRef.current?.watchInputTrack(mic.track.mediaStreamTrack);
+          deviceRecoveryManagerRef.current?.setActiveDevices(
+            { activeId: prefs?.micId || 'default', preferredId: prefs?.micId || 'default' },
+            { activeId: prefs?.speakerId || 'default', preferredId: prefs?.speakerId || 'default' },
+          );
+        }
+
+        await room.localParticipant.publishTrack(mic.track);
+        if (prefs?.micId && typeof room.switchActiveDevice === 'function') {
+          try {
+            await room.switchActiveDevice('audioinput', prefs.micId);
+          } catch {
+            /* ignore */
+          }
+        }
+        setMicOn(true);
+        setDeafened(false);
+        deafenedRef.current = false;
+        applyAllAudioOutput();
+      },
+      { label: `switchMicDevice:${prefs?.micId || 'default'}`, timeoutMs: 2500 },
+    );
   }
+
+  switchMicDeviceDelegateRef.current = switchMicDevice;
 
   function setNoiseLevel(level: number) {
     deepFilterSetLevelRef.current(level);
@@ -1623,28 +1941,62 @@ export function useLiveKitRoom(
 
   async function toggleMic() {
     const room = roomRef.current;
-    if (!room) return;
+    if (!room) {
+      if (deafenedRef.current) {
+        deafenedRef.current = false;
+        setDeafened(false);
+      }
+      setMicOn((prev) => {
+        const next = !prev;
+        if (next) void playMicUnmuteSound();
+        else void playMicMuteSound();
+        setParticipants((curr) =>
+          curr.map((p) => (p.isLocal ? { ...p, muted: !next } : p)),
+        );
+        return next;
+      });
+      return;
+    }
     if (deafenedRef.current) {
       deafenedRef.current = false;
       setDeafened(false);
       applyAllAudioOutput();
     }
     const next = !micOn;
+    if (next) void playMicUnmuteSound();
+    else void playMicMuteSound();
     await room.localParticipant.setMicrophoneEnabled(next);
     setMicOn(next);
   }
 
   async function toggleDeafen() {
     const room = roomRef.current;
-    if (!room) return;
+    if (!room) {
+      const next = !deafenedRef.current;
+      deafenedRef.current = next;
+      setDeafened(next);
+      if (next) {
+        void playMicMuteSound();
+        setMicOn(false);
+      } else {
+        void playMicUnmuteSound();
+        setMicOn(true);
+      }
+      setParticipants((curr) =>
+        curr.map((p) => (p.isLocal ? { ...p, muted: next } : p)),
+      );
+      return;
+    }
     const next = !deafenedRef.current;
     deafenedRef.current = next;
     setDeafened(next);
     applyAllAudioOutput();
     if (next) {
+      void playMicMuteSound();
       await room.localParticipant.setMicrophoneEnabled(false);
       setMicOn(false);
     } else {
+      void playMicUnmuteSound();
       await room.localParticipant.setMicrophoneEnabled(true);
       setMicOn(true);
     }
@@ -1685,6 +2037,14 @@ export function useLiveKitRoom(
     if (!room) return {};
     if (sharing) {
       stopScreenScaler();
+      if (localMockScreenTrackRef.current) {
+        try {
+          localMockScreenTrackRef.current.stop();
+        } catch {
+          /* ignore */
+        }
+        localMockScreenTrackRef.current = null;
+      }
       shareAudioLockRef.current = false;
       if (shareKeepAliveRef.current != null) {
         window.clearInterval(shareKeepAliveRef.current);
@@ -1718,6 +2078,7 @@ export function useLiveKitRoom(
     const fps = optsShare?.fps || 30;
     const audioMode = optsShare?.audioMode || 'app';
     const bitrateMode = optsShare?.bitrateMode || 'fixed';
+    const videoCodec = optsShare?.videoCodec || 'h264';
     const withAudio = audioMode !== 'off';
     const height =
       quality === 'source' ? 0 : quality === '480' ? 480 : quality === '1080' ? 1080 : 720;
@@ -1755,6 +2116,9 @@ export function useLiveKitRoom(
       }
     };
     try {
+      if (optsShare?.sourceId && desktop?.pickSource) {
+        await desktop.pickSource(optsShare.sourceId).catch(() => undefined);
+      }
       await desktop?.setShareCapturePrefs?.({
         preferCurrentTab: false,
         audioMode,
@@ -1763,6 +2127,7 @@ export function useLiveKitRoom(
         bitrateMode,
         title: optsShare?.title || '',
         publicWatch: !!optsShare?.publicWatch,
+        sourceId: optsShare?.sourceId || '',
       });
       await desktop?.setShareAudioMode?.(audioMode);
     } catch {
@@ -1846,6 +2211,7 @@ export function useLiveKitRoom(
             Math.abs(Number(settings.height) - height) > 24 ||
             !settings.width ||
             Number(settings.width) > width + 48;
+          let finalTrack: LocalVideoTrack | typeof track = track;
           if (needScale) {
             const scaled = await scaleScreenTrack(rawMst, width, height, fps);
             screenScalerStopRef.current = () => {
@@ -1856,10 +2222,30 @@ export function useLiveKitRoom(
                 /* ignore */
               }
             };
-            const localScaled = new LocalVideoTrack(scaled.track, undefined, true);
-            await room.localParticipant.publishTrack(localScaled, publishOpts);
+            finalTrack = new LocalVideoTrack(scaled.track, undefined, true);
+          }
+
+          // Se o usuário clicar em "Parar compartilhamento" na barra do navegador/sistema
+          track.mediaStreamTrack.onended = () => {
+            voiceLog('shareScreen:track-onended', { isSharing: sharingRef.current });
+            if (sharingRef.current) {
+              void shareScreen();
+            }
+          };
+
+          const isConnected = room.state === ConnectionState.Connected;
+          if (isConnected) {
+            const pubPromise = room.localParticipant.publishTrack(finalTrack, publishOpts);
+            const timeoutPromise = new Promise((_, reject) =>
+              window.setTimeout(
+                () => reject(new Error('Tempo limite de resposta do servidor LiveKit ao publicar tela.')),
+                8000,
+              ),
+            );
+            await Promise.race([pubPromise, timeoutPromise]);
           } else {
-            await room.localParticipant.publishTrack(track, publishOpts);
+            voiceLog('shareScreen:local-mock-publish', { isConnected: false });
+            localMockScreenTrackRef.current = finalTrack;
           }
         } else {
           try {
@@ -1869,7 +2255,29 @@ export function useLiveKitRoom(
           } catch {
             /* ignore */
           }
-          await room.localParticipant.publishTrack(track, publishOpts);
+
+          // Se o usuário clicar em "Parar compartilhamento" na barra do navegador/sistema
+          track.mediaStreamTrack.onended = () => {
+            voiceLog('shareScreen:track-onended', { isSharing: sharingRef.current });
+            if (sharingRef.current) {
+              void shareScreen();
+            }
+          };
+
+          const isConnected = room.state === ConnectionState.Connected;
+          if (isConnected) {
+            const pubPromise = room.localParticipant.publishTrack(track, publishOpts);
+            const timeoutPromise = new Promise((_, reject) =>
+              window.setTimeout(
+                () => reject(new Error('Tempo limite de resposta do servidor LiveKit ao publicar tela.')),
+                8000,
+              ),
+            );
+            await Promise.race([pubPromise, timeoutPromise]);
+          } else {
+            voiceLog('shareScreen:local-mock-publish', { isConnected: false });
+            localMockScreenTrackRef.current = track;
+          }
         }
       }
     } catch (err) {
@@ -2039,5 +2447,15 @@ export function useLiveKitRoom(
     setNoiseLevel,
     leave,
     error,
+    metricsCollector: metricsCollectorRef.current,
+    benchmarkRunner: benchmarkRunnerRef.current,
+    lifecycleManager: lifecycleManagerRef.current,
+    deviceRecoveryManager: deviceRecoveryManagerRef.current,
+    policyEngine: policyEngineRef.current,
+    audioBudgetMonitor: audioBudgetMonitorRef.current,
+    adaptiveAudioEngine: adaptiveAudioEngineRef.current,
+    mediaQualityController: mediaQualityControllerRef.current,
+    diagnostics: CrashDiagnostics.instance,
+    room: roomRef.current,
   };
 }

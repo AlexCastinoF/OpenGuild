@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+﻿import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Lock, ShieldCheck, User } from 'lucide-react';
 import { api } from '../lib/api';
@@ -22,7 +22,15 @@ const REMEMBER_USER_KEY = 'sf-login-remember-user';
 export function LoginPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
+  const next = safeNext(params.get('next'));
+  const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+
+  useEffect(() => {
+    if (user) {
+      nav(next, { replace: true });
+    }
+  }, [user, nav, next]);
   const brandName = useBrandStore((s) => s.name);
   const brandShort = useBrandStore((s) => s.short_name);
   const brandLogo = useBrandStore((s) => s.logo_url);
@@ -39,7 +47,6 @@ export function LoginPage() {
   const [needsSetup, setNeedsSetup] = useState(false);
   const [registerEnabled, setRegisterEnabled] = useState(true);
   const desktop = isDesktopApp();
-  const next = safeNext(params.get('next'));
 
   useEffect(() => {
     try {
@@ -112,7 +119,7 @@ export function LoginPage() {
         if (cfg?.serverUrl) setLocalTarget(cfg.serverUrl);
         if (cfg?.isDev || /localhost|127\.0\.0\.1/.test(String(cfg?.serverUrl || ''))) {
           setHint(
-            'Electron local entra na API de desenvolvimento (não em chat.example.com). Usa o username da conta local, por exemplo admin.',
+            'Electron local entra na API de desenvolvimento (nÃ£o em chat.example.com). Usa o username da conta local, por exemplo admin.',
           );
         }
       } catch {
@@ -155,10 +162,10 @@ export function LoginPage() {
         }
         if (res?.status && res.status >= 400) {
           const nested = Array.isArray(res.message) ? res.message.join(', ') : res.message;
-          setError(res.error || nested || 'Usuário ou senha inválidos');
+          setError(res.error || nested || 'UsuÃ¡rio ou senha invÃ¡lidos');
           if (res.serverUrl && /localhost|127\.0\.0\.1/.test(res.serverUrl)) {
             setHint(
-              'Este app está no servidor local. O username é o da base local (ex.: admin), não um nome de perfil da produção.',
+              'Este app estÃ¡ no servidor local. O username Ã© o da base local (ex.: admin), nÃ£o um nome de perfil da produÃ§Ã£o.',
             );
           }
           return;
@@ -176,10 +183,10 @@ export function LoginPage() {
               saveCreds?: (u: string, p: string) => Promise<{ ok?: boolean; reason?: string } | undefined>;
             }
           ).saveCreds?.(username, password)) as { ok?: boolean; reason?: string } | undefined;
-          // Sem criptografia do sistema o desktop não grava a senha; avisa em vez de falhar em silêncio
+          // Sem criptografia do sistema o desktop nÃ£o grava a senha; avisa em vez de falhar em silÃªncio
           if (saved && saved.ok === false && saved.reason === 'encryption_unavailable') {
             window.alert(
-              'Não foi possível guardar a senha com segurança neste computador. Você precisará entrar de novo na próxima abertura.',
+              'NÃ£o foi possÃ­vel guardar a senha com seguranÃ§a neste computador. VocÃª precisarÃ¡ entrar de novo na prÃ³xima abertura.',
             );
           }
         } else {
@@ -236,14 +243,14 @@ export function LoginPage() {
           <div className="sf-login-hero-brand">
             <img src={brandLogo || '/logo.png'} alt="" />
             <div>
-              <strong>{brandShort || 'SteamFarm'}</strong>
+              <strong>{brandShort || 'RallyDesk'}</strong>
               <em>{brandName.includes(brandShort) ? brandName.replace(brandShort, '').trim() || 'Comunidade' : brandName}</em>
             </div>
           </div>
           <h2>O hub do seu time competitivo.</h2>
           <p>
-            Voz, tela, WhatsApp e operação Steam num só lugar — visual de launcher, ritmo de
-            produção.
+            Voz, tela, WhatsApp e operaÃ§Ã£o Steam num sÃ³ lugar â€” visual de launcher, ritmo de
+            produÃ§Ã£o.
           </p>
           <ul className="sf-login-signals">
             <li>
@@ -252,7 +259,7 @@ export function LoginPage() {
             </li>
             <li>
               <span />
-              WhatsApp multi-sessão
+              WhatsApp multi-sessÃ£o
             </li>
             <li>
               <span />
@@ -271,9 +278,9 @@ export function LoginPage() {
           <div className="sf-login-card-top">
             <div className="sf-login-brand">
               <img src={brandLogo || '/logo.png'} alt="" width={36} height={36} />
-              <strong>{brandShort || 'SteamFarm'}</strong>
+              <strong>{brandShort || 'RallyDesk'}</strong>
             </div>
-            <span className="sf-login-secure" title="Sessão autenticada com cookie seguro">
+            <span className="sf-login-secure" title="SessÃ£o autenticada com cookie seguro">
               <ShieldCheck size={13} aria-hidden />
               Seguro
             </span>
@@ -291,7 +298,7 @@ export function LoginPage() {
           </p>
 
           <label className="sf-login-field" style={{ ['--d' as string]: '1' }}>
-            <span>Usuário</span>
+            <span>UsuÃ¡rio</span>
             <div className="sf-login-input">
               <User size={16} aria-hidden />
               <input
@@ -300,7 +307,7 @@ export function LoginPage() {
                 autoFocus
                 autoComplete="username"
                 name="username"
-                placeholder="seu usuário"
+                placeholder="seu usuÃ¡rio"
                 required
               />
             </div>
@@ -316,7 +323,7 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 name="password"
-                placeholder="••••••••"
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                 required
               />
               <button
@@ -379,7 +386,7 @@ export function LoginPage() {
               {busy ? (
                 <>
                   <i className="sf-login-spinner" aria-hidden />
-                  Entrando…
+                  Entrandoâ€¦
                 </>
               ) : (
                 'Entrar'
@@ -390,14 +397,14 @@ export function LoginPage() {
           <p className="sf-login-foot">
             {registerEnabled ? (
               <>
-                Ainda não tem uma conta? <Link to={registerTo}>Criar conta</Link>
+                Ainda nÃ£o tem uma conta? <Link to={registerTo}>Criar conta</Link>
               </>
             ) : (
               <span>Cadastro fechado no momento.</span>
             )}
             {needsSetup ? (
               <>
-                {' · '}
+                {' Â· '}
                 <Link to="/setup">Setup inicial</Link>
               </>
             ) : null}

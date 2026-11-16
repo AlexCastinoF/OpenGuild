@@ -528,7 +528,7 @@ export function formatAdminExecError(r?: {
   if (r.error === 'plugin_no_ack') {
     return (
       r.hint ||
-      'Plugin não confirmou (DLL antigo?). Reinicia o dedicated no Desktop SteamFarm.'
+      'Plugin não confirmou (DLL antigo?). Reinicia o dedicated no Desktop RallyDesk.'
     );
   }
   if (r.error === 'plugin_exec_partial') {

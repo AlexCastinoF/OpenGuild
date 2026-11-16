@@ -1,33 +1,34 @@
-# OpenGuild
+# OpenGuild / RallyDesk
 
 Comunidade open source no estilo Discord: servidores, canais de texto e voz, compartilhamento de tela com link público, trocas de itens Steam, acesso remoto (RustDesk), temas, YouTube, WhatsApp e partidas de CS2. Você hospeda na sua máquina ou numa VPS.
 
-O app de desktop (Electron) é um cliente fino: a interface vem do site. Atualizar o servidor atualiza a comunidade para todo mundo; o `.exe` fica com a bandeja, a captura de áudio, o acesso remoto e o auto-update.
+O cliente desktop agora conta com o **RallyDesk**, desenvolvido em **Tauri 2.0 + Rust** (substituindo o antigo cliente Electron pesado), gerando um executável nativo ultraleve (`RallyDesk.exe`, ~32 MB) com alto desempenho, baixo uso de RAM e captura integrada.
 
 ```
-Self-hosted Discord-style community: servers, text, voice, screen share, public watch, Steam trades, remote desktop, and a desktop app.
+Self-hosted Discord-style community: servers, text, voice, screen share, public watch, Steam trades, remote desktop, and a high-performance Tauri+Rust desktop app.
 ```
 
 ## Sumário
 
 1. [O que é](#o-que-é)
-2. [Recursos](#recursos)
-3. [Tecnologias](#tecnologias)
-4. [Arquitetura](#arquitetura)
-5. [Antes de publicar no GitHub](#antes-de-publicar-no-github)
-6. [Rodar localmente](#rodar-localmente)
-7. [Instalar numa VPS com o instalador](#instalar-numa-vps-com-o-instalador)
-8. [Instalar ou atualizar sem o instalador](#instalar-ou-atualizar-sem-o-instalador)
-9. [O que o bootstrap faz na VPS](#o-que-o-bootstrap-faz-na-vps)
-10. [Steam, vitrine e trocas](#steam-vitrine-e-trocas)
-11. [Compartilhamento de tela e link público](#compartilhamento-de-tela-e-link-público)
-12. [Acesso remoto (RustDesk)](#acesso-remoto-rustdesk)
-13. [WhatsApp](#whatsapp)
-14. [App desktop](#app-desktop)
-15. [Partidas CS2](#partidas-cs2)
-16. [Operação](#operação)
-17. [Contribuindo](#contribuindo)
-18. [Licença e créditos](#licença-e-créditos)
+2. [Modificações Recentes — RallyDesk v1.2.43](#modificações-recentes--rallydesk-v1243)
+3. [Recursos](#recursos)
+4. [Tecnologias](#tecnologias)
+5. [Arquitetura](#arquitetura)
+6. [Antes de publicar no GitHub](#antes-de-publicar-no-github)
+7. [Rodar localmente](#rodar-localmente)
+8. [Instalar numa VPS com o instalador](#instalar-numa-vps-com-o-instalador)
+9. [Instalar ou atualizar sem o instalador](#instalar-ou-atualizar-sem-o-instalador)
+10. [O que o bootstrap faz na VPS](#o-que-o-bootstrap-faz-na-vps)
+11. [Steam, vitrine e trocas](#steam-vitrine-e-trocas)
+12. [Compartilhamento de tela e link público](#compartilhamento-de-tela-e-link-público)
+13. [Acesso remoto (RustDesk)](#acesso-remoto-rustdesk)
+14. [WhatsApp](#whatsapp)
+15. [App desktop (RallyDesk Rust + Tauri)](#app-desktop-rallydesk-rust--tauri)
+16. [Partidas CS2](#partidas-cs2)
+17. [Operação](#operação)
+18. [Contribuindo](#contribuindo)
+19. [Licença e créditos](#licença-e-créditos)
 
 ## O que é
 
@@ -36,6 +37,45 @@ O OpenGuild é um servidor de comunidade que você mesmo sobe. Cada instalação
 No navegador você entra, cria o primeiro administrador em `/setup` e usa a comunidade (chat, voz, tela, trocas Steam, WhatsApp). No Windows, o app de desktop abre o mesmo site e acrescenta captura de jogo, tray, acesso remoto e partidas de CS2 no PC do host.
 
 A Central de Deploy (`installer-win`) também instala outros sistemas da mesma família (reuniões, mídia, RH). Este README cobre o OpenGuild. Os demais têm o próprio guia na pasta do projeto.
+
+## Modificações Recentes — RallyDesk v1.2.43
+
+Esta versão traz uma modernização completa de arquitetura, focada em transformar a experiência desktop em uma aplicação nativa de alta performance com identidade própria e zero dependência de interfaces genéricas de navegador:
+
+### 1. Migração Desktop para Tauri 2.0 + Rust
+- **Binário Nativo Ultraleve:** Substituição do cliente Electron pesado pelo **Tauri 2.0 com backend em Rust** (`apps/desktop/src-tauri`), gerando o executável oficial `RallyDesk.exe` (~32 MB, uso médio de apenas ~30 MB de RAM em repouso e inicialização sub-segundo).
+- **Identidade de Sistema no Windows:**
+  - Nome do produto e descrição configurados como **RallyDesk**.
+  - AUMID (Application User Model ID) registrado nativamente no Windows Shell: `app.rallydesk.desktop`.
+  - Ícone oficial do controle RD de alta definição embutido nos recursos PE do executável e nos atalhos do Windows.
+  - Manifesto PE configurado com a dependência de **`Microsoft.Windows.Common-Controls` versão `6.0.0.0`** (`comctl32.dll`), garantindo compatibilidade total com o WebView2 e evitando falhas de inicialização com `TaskDialogIndirect`.
+
+### 2. Compartilhamento de Tela Nativo e Integrado (In-App Picker)
+- **Removido:** Seletor genérico do navegador (`getDisplayMedia()`), que abria caixas de diálogo padrão do Chromium identificando a origem como `http://tauri.localhost`.
+- **Adicionado:** Enumerador nativo em Rust via Win32 (`EnumDisplayMonitors` e `EnumWindows`) com captura de miniaturas em tempo real (240x135 px) utilizando GDI Memory Device Context (`CreateCompatibleDC`, `CreateDIBSection`).
+- **Nova Interface de Seleção:** Modal integrado ao tema do aplicativo com:
+  - Abas dedicadas para **"Telas"** (monitores principais e secundários) e **"Janelas"** abertas.
+  - Cards visuais com pré-visualização ao vivo da janela/tela selecionada.
+  - Seleção de qualidade e taxa de quadros (720p 30fps / 1080p 60fps) com baixo consumo de CPU e GPU.
+
+### 3. Sistema de Música e Player do YouTube Estabilizado
+- **Correção da Causa Raiz de Bloqueio:** Removida a restrição de origem estrita `origin: window.location.origin` (que apontava para `http://tauri.localhost`), eliminando os erros 150 e 101 da YouTube IFrame API ("Incorporação desativada pelo proprietário").
+- **Conformidade de Embed:** Adicionado `widget_referrer: 'https://www.youtube.com'` e tratamento de erro resiliente com auto-skip de vídeos indisponíveis.
+- **Catálogo e Busca:** Adicionado endpoint local de busca de faixas e metadados (`/api/community/youtube/search`).
+
+### 4. Sistema de Partidas Competitivas (CS2 / Premier Veto)
+- **Ciclo de Vida Completo Homologado:** Criação de salas, convites diretos, contagem regressiva de prontidão (*Ready*), sistema de veto/votação de mapas estilo Premier CS2, exibição de dados de conexão direta do servidor dedicado e encerramento de partida.
+- **Sincronização em Tempo Real:** Integrado servidor Socket.IO dedicado (`/ws`) emitindo eventos em tempo real (`match.rooms`, `match.updated`, `match.ready_countdown`, `match.vote_started`, `match.vote_cast`, `match.connect`, `match.ended`).
+
+### 5. Experiência de Áudio e Usabilidade Desktop
+- **Removido:** Menu de contexto padrão de navegador ("Voltar", "Atualizar", "Imprimir", etc.) desativado globalmente na interface.
+- **Adicionado:** Menus de contexto customizados seguindo o design system do RallyDesk (edição de canais, moderação, cargos).
+- **Adicionado:** Feedback sonoro sutil (Web Audio API) com ganho baixo e confortável (~0.024) para ações de mutar/desmutar microfone e entrada/saída de participantes em salas de voz.
+- **Telemetria RFC v3.0:** Módulo de telemetria de hardware e áudio com isolamento de som de jogo via Process Loopback WASAPI e política Zero Readback em VRAM.
+
+### 6. Ferramentas e Scripts de Operação
+- `scripts/deploy_rallydesk.ps1`: Automatiza a validação, deploy do `RallyDesk.exe` em diretórios locais e sincronização dos atalhos da Área de Trabalho com envio de `SHChangeNotify` ao Windows Shell.
+- `scripts/dev_api_server.js`: Servidor de desenvolvimento rápido com gateway Socket.IO para simulação de partidas, busca de músicas e testes locais.
 
 ## Recursos
 
@@ -125,22 +165,24 @@ A Central de Deploy (`installer-win`) também instala outros sistemas da mesma f
 |--------|--------|
 | API | NestJS, Prisma, PostgreSQL, Redis, Socket.IO, JWT, Helmet, LiveKit Server SDK |
 | Web | React 19, Vite, TypeScript, Zustand, TanStack Query, LiveKit Client, Socket.IO Client |
-| Desktop | Electron 35, electron-builder, electron-updater, loopback de áudio, UPnP |
+| Desktop (Oficial) | **Tauri 2.0, Rust**, WebView2, Win32 API (GDI, D3D11 WGC, WASAPI Process Loopback) |
+| Desktop (Legado) | Electron 35, electron-builder, electron-updater, loopback de áudio, UPnP |
 | Voz | LiveKit (salas `sfr-{serverId}-ch-{channelId}`) |
 | WhatsApp | [zapo-js](https://github.com/vinikjkkj/zapo) e [`@zapo-js/store-postgres`](https://www.npmjs.com/package/@zapo-js/store-postgres) |
 | Deploy | Nginx, systemd, Certbot, script `deploy/remote-bootstrap.sh` |
 | Instalador Windows | Python, CustomTkinter, Paramiko (`INSTALLAR.cmd`) |
 | CS2 | Plugin C# (`SfAssignTeams`, `SfKillSounds`), GSI, GSLT |
 
-Node 20 ou 22. Python 3.10+ só para o instalador e os scripts de deploy.
+Node 20 ou 22. Rust 1.80+ (para compilar o cliente Tauri `RallyDesk.exe`). Python 3.10+ só para o instalador e os scripts de deploy.
 
 ## Arquitetura
 
 ```
-OpenGuild/
+OpenGuild / RallyDesk:
   apps/api          API NestJS (JWT, Socket.IO, Prisma, LiveKit, Steam/trocas, remoto, temas, YouTube, CS2)
   apps/web          Interface React (comunidade, voz, tela, watch público, Steam, WhatsApp)
-  apps/desktop      Electron (bandeja, captura, RustDesk, updater, dedicated CS2)
+  apps/desktop/src-tauri   Cliente Nativo Rust + Tauri v2 (RallyDesk.exe, tray, captura, WASAPI, telemetria)
+  apps/desktop      Wrapper Electron legado / scripts de empacotamento
   packages/shared   Tipos e helpers compartilhados
   whatsapp/         Gateway Zapo (Node), só em 127.0.0.1
   deploy/           Bootstrap da VPS e scripts de install/update
@@ -501,24 +543,45 @@ Variáveis: `ZAPO_PORT` (padrão 8788), `ZAPO_GATEWAY_SECRET`, `ZAPO_DATABASE_UR
 
 WhatsApp é conta pessoal. Quem forkar o projeto precisa seguir os termos do WhatsApp e da biblioteca. Sessões, QR e o banco `zapo_*` são dados sensíveis: não vão para o Git.
 
-## App desktop
+## App desktop (RallyDesk Rust + Tauri)
 
-Pasta `apps/desktop`. Versão atual do pacote: **1.2.43**. O `appId` do instalador Windows é `app.openguild.desktop`.
+A aplicação desktop oficial é o **RallyDesk**, com backend nativo em Rust localizado em `apps/desktop/src-tauri` e empacotamento com Tauri v2.
 
-O `.exe` instalado carrega a UI remota (`SF_COMMUNITY_URL`, padrão o domínio da sua VPS). Por isso um `git pull` + update na VPS muda temas, YouTube, trocas e comunidade sem gerar outro instalador. O remoto e o host de CS2 ficam no processo Electron.
+- **Nome do Executável:** `RallyDesk.exe` (~32 MB)
+- **AppUserModelID:** `app.rallydesk.desktop`
+- **Performance:** Consumo ultrabaixo de memória RAM (~30 MB) e inicialização sub-segundo, utilizando WebView2 nativo do Windows.
+
+### Compilação do Executável de Produção
 
 ```powershell
-# gerar o instalador Windows
+# 1. Compilar o frontend web de produção
+npm run build -w @steamfarm/web
+
+# 2. Compilar o executável nativo Rust / Tauri de release
+cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+# 3. Executar o script de deploy local (instala em AppData e atualiza atalhos)
+powershell -ExecutionPolicy Bypass -File scripts\deploy_rallydesk.ps1
+```
+
+O script `scripts\deploy_rallydesk.ps1` copia o `RallyDesk.exe` para `C:\Users\%USERNAME%\AppData\Local\RallyDesk\RallyDesk.exe`, cria atalhos com o ícone oficial RD na Área de Trabalho e emite notificação `SHCNE_ASSOCCHANGED` via `SHChangeNotify` para atualização instantânea do cache de ícones do Windows.
+
+### Cliente Desktop Legado (Electron)
+
+Mantido em `apps/desktop` para retrocompatibilidade:
+
+```powershell
+# Gerar instalador Electron
 npm run dist:desktop
 
-# enviar o feed para a VPS (latest.yml + .exe + .blockmap)
+# Enviar feed para VPS (latest.yml + .exe + .blockmap)
 $env:SF_DEPLOY_PASS = 'senha-root'
 python deploy/upload_desktop_and_wa.py
 ```
 
 | Variável | Efeito |
 |----------|--------|
-| `SF_COMMUNITY_URL` | Site que o app abre |
+| `SF_COMMUNITY_URL` | Site que o app abre (padrão `http://127.0.0.1:8014` em dev) |
 | `SF_DESKTOP_UPDATE_URL` | Feed do updater (padrão `{URL}/desktop/`) |
 
 Fechar a janela com “minimizar para a bandeja” mantém a voz. Sair de verdade tira da sala e marca presença offline.

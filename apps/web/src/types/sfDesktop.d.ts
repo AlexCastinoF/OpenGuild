@@ -21,6 +21,73 @@ declare global {
       ) => Promise<{ status?: number; ok?: boolean; user?: unknown; error?: string }>;
       logout: () => Promise<unknown>;
       openExternal?: (url: string) => Promise<unknown>;
+      windowMinimize?: () => Promise<void>;
+      windowToggleMaximize?: () => Promise<boolean>;
+      windowIsMaximized?: () => Promise<boolean>;
+      windowClose?: () => Promise<void>;
+      windowStartDragging?: () => Promise<void>;
+      getHardwareTelemetry?: () => Promise<{
+        timestamp_ms: number;
+        cpu_global_pct: number;
+        cpu_process_pct: number;
+        ram_process_mb: number;
+        gpu_3d_pct: number;
+        gpu_video_encode_pct: number;
+        gpu_copy_engine_pct: number;
+        vram_used_mb: number;
+        vram_total_mb: number;
+      }>;
+      startHardwareTelemetry?: () => Promise<{ ok: boolean; sampling: boolean }>;
+      stopHardwareTelemetry?: () => Promise<{ ok: boolean; sampling: boolean }>;
+      onHardwareTelemetry?: (callback: (telemetry: {
+        timestamp_ms: number;
+        cpu_global_pct: number;
+        cpu_process_pct: number;
+        ram_process_mb: number;
+        gpu_3d_pct: number;
+        gpu_video_encode_pct: number;
+        gpu_copy_engine_pct: number;
+        vram_used_mb: number;
+        vram_total_mb: number;
+      }) => void) => () => void;
+      getGpuCapabilities?: () => Promise<{
+        ok: boolean;
+        primaryGpu: {
+          name: string;
+          vendor: string;
+          vendorId: string;
+          driverVersion: string;
+          dedicatedVramMb: number;
+          isIntegrated: boolean;
+          architecture: string;
+          encoderTier: string;
+          maxRecommendedResolution: string;
+          maxRecommendedFps: number;
+          recommendedPreset: string;
+          recommendedCodec: string;
+          av1EncodeSupported: boolean;
+          notes: string[];
+        };
+        allGpus: Array<{
+          name: string;
+          vendor: string;
+          vendorId: string;
+          driverVersion: string;
+          dedicatedVramMb: number;
+          isIntegrated: boolean;
+          architecture: string;
+          encoderTier: string;
+          maxRecommendedResolution: string;
+          maxRecommendedFps: number;
+          recommendedPreset: string;
+          recommendedCodec: string;
+          av1EncodeSupported: boolean;
+          notes: string[];
+        }>;
+        osVersion: string;
+        wgcSupported: boolean;
+        zeroCopySupported: boolean;
+      }>;
       setShareAudioMode: (mode: string) => Promise<unknown>;
       setShareCapturePrefs: (prefs: Record<string, unknown>) => Promise<unknown>;
       setShareActive?: (active: boolean) => Promise<{ ok?: boolean; shareActive?: boolean }>;
@@ -33,6 +100,16 @@ declare global {
       startGameAudioCapture: () => Promise<unknown>;
       startSystemAudioCapture?: () => Promise<unknown>;
       stopGameAudioCapture: () => Promise<unknown>;
+      getAudioRoutingStatus?: () => Promise<{
+        is_capturing: boolean;
+        mode: string;
+        target_process_name: string;
+        target_pid: number | null;
+        os_build: number;
+        supports_process_loopback: boolean;
+        chunks_emitted: number;
+        last_chunk_ts_ms: number;
+      }>;
       onGameAudioChunk: (callback: (chunk: Uint8Array) => void) => () => void;
       getUpdateStatus: () => Promise<{
         available?: boolean;
@@ -311,6 +388,68 @@ declare global {
       /** App fechando / indo para bandeja — sair da voz */
       onLeaving?: (cb: () => void) => () => void;
       focusWindow: () => Promise<unknown>;
+      // Crash Diagnostics & Device Recovery (RFC v3.0 - Etapa 2)
+      getCrashDiagnostics?: () => Promise<{
+        generated_at_ms: number;
+        environment: {
+          os_name: string;
+          os_version: string;
+          architecture: string;
+          working_set_mb: number;
+          handle_count: number;
+          thread_count: number;
+        };
+        total_events: number;
+        events: Array<{
+          id: number;
+          timestamp_ms: number;
+          subsystem: string;
+          level: string;
+          event_name: string;
+          details_json: string;
+        }>;
+      }>;
+      recordDiagnosticEvent?: (
+        subsystem: string,
+        level: string,
+        eventName: string,
+        detailsJson?: string,
+      ) => Promise<void>;
+      clearCrashDiagnostics?: () => Promise<void>;
+      getSubsystemHealth?: () => Promise<
+        Array<{
+          id: string;
+          health: unknown;
+          recovery_count: number;
+          last_recovered_ms?: number | null;
+        }>
+      >;
+      triggerSubsystemRecovery?: (subsystem: string, reason: string) => Promise<void>;
+      onSubsystemRecovery?: (
+        cb: (data: { subsystem: string; state: string; timestamp_ms: number }) => void,
+      ) => () => void;
+
+      // PerformanceGuardian & Watchdog (RFC v3.0 - Etapa 3)
+      getGuardianStatus?: () => Promise<{
+        pressure_level: 'Normal' | 'Moderate' | 'High' | 'Critical';
+        cpu_global_pct: number;
+        cpu_app_pct: number;
+        cs2_running: boolean;
+        cs2_pid: number | null;
+        timestamp_ms: number;
+      }>;
+      startGuardian?: () => Promise<void>;
+      stopGuardian?: () => Promise<void>;
+      onGuardianAlert?: (
+        cb: (status: {
+          pressure_level: 'Normal' | 'Moderate' | 'High' | 'Critical';
+          cpu_global_pct: number;
+          cpu_app_pct: number;
+          cs2_running: boolean;
+          cs2_pid: number | null;
+          timestamp_ms: number;
+        }) => void,
+      ) => () => void;
       getPickerSources?: () => Promise<
         Array<{ id: string; name: string; thumbnailDataUrl?: string }>
       >;

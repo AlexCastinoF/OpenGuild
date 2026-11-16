@@ -66,7 +66,7 @@ export function withBrandTitle(title: string): string {
   let t = String(title || '').trim();
   if (!t) return brand;
   t = t.replace(/^Comunidade\s*[·•|\-–—]\s*/i, '');
-  t = t.replace(/^SteamFarm(?:\s+Comunidade)?\s*[·•|\-–—]\s*/i, '');
+  t = t.replace(/^(?:SteamFarm|RallyDesk)(?:\s+Comunidade)?\s*[·•|\-–—]\s*/i, '');
   if (t.toLowerCase().startsWith(brand.toLowerCase())) return t;
   return `${brand} · ${t}`;
 }

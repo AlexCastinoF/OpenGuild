@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, memo, type CSSProperties } from 'react';
 import {
   ChevronDown,
   Maximize,
@@ -45,7 +45,7 @@ type Props = {
   onCopyPublicWatch?: () => void;
 };
 
-export function VoiceStage({
+export const VoiceStage = memo(function VoiceStage({
   channelName,
   kind,
   livekitReady,
@@ -470,9 +470,9 @@ export function VoiceStage({
       </div>
     </div>
   );
-}
+});
 
-function StageTile({
+const StageTile = memo(function StageTile({
   p,
   watching,
   micVol,
@@ -588,4 +588,4 @@ function StageTile({
       </div>
     </article>
   );
-}
+});

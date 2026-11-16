@@ -1,0 +1,27 @@
+pub mod audio_service;
+pub mod crash_diagnostics;
+pub mod cs2_service;
+pub mod device_recovery;
+pub mod gpu_service;
+pub mod gsi_service;
+pub mod lifecycle;
+pub mod performance_guardian;
+pub mod rustdesk_service;
+pub mod storage_service;
+pub mod telemetry_service;
+pub mod wgc_capture;
+pub mod native_media_bridge;
+
+pub use audio_service::{AudioRoutingStatus, AudioService};
+pub use crash_diagnostics::{CrashDiagnosticsDump, CrashDiagnosticsService};
+pub use cs2_service::Cs2Service;
+pub use device_recovery::{NativeDeviceRecoveryManager, SubsystemHealth, SubsystemId, SubsystemStatus};
+pub use gpu_service::GpuService;
+pub use gsi_service::GsiService;
+pub use lifecycle::{CancellationToken, NativeLifecycleManager, ResourceLease, ResourceType};
+pub use native_media_bridge::{BridgeBenchmarkComparison, MediaBridgeArchitecture, NativeMediaBridgeService};
+pub use performance_guardian::{GuardianPressureLevel, GuardianStatus, PerformanceGuardianService};
+pub use rustdesk_service::RustdeskService;
+pub use storage_service::StorageService;
+pub use telemetry_service::{HardwareTelemetry, TelemetryService};
+pub use wgc_capture::{D3D11_TEXTURE2D_DESC, WgcCaptureEngine, WgcCaptureStatus};

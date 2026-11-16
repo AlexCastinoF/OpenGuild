@@ -101,7 +101,7 @@ export function RemoteRequestModal({
         <ul className="remote-access-points">
           <li>Só avança se você aceitar.</li>
           <li>Pode encerrar a sessão a qualquer momento.</li>
-          <li>Requer o app Desktop SteamFarm nesta máquina.</li>
+          <li>Requer o app Desktop RallyDesk nesta máquina.</li>
         </ul>
 
         {left > 0 ? (

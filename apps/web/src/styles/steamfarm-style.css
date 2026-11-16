@@ -5113,22 +5113,40 @@ body.theme-surface-light .comm-status-menu {
   grid-template-columns: var(--comm-rail) var(--comm-side) minmax(0, 1fr) 52px;
 }
 .comm-members-panel.is-collapsed {
-  padding: 10px 6px;
+  padding: 12px 6px;
   overflow: hidden;
+  cursor: pointer;
 }
 .comm-members-panel.is-collapsed .comm-members-head {
   flex-direction: column;
   margin: 0;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 .comm-members-panel.is-collapsed .comm-members-title,
 .comm-members-panel.is-collapsed .comm-members-count,
-.comm-members-panel.is-collapsed .comm-members-filters {
-  display: none;
+.comm-members-panel.is-collapsed .comm-members-filters,
+.comm-members-panel.is-collapsed .pm-members-btn,
+.comm-members-panel.is-collapsed [data-comm-members] {
+  display: none !important;
 }
 .comm-members-panel.is-collapsed .comm-members-collapse {
   margin: 0;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--comm-text, #ffffff);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.comm-members-panel.is-collapsed .comm-members-collapse:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--accent, #66c0f4);
 }
 .comm-member-group {
   margin-bottom: 10px;
@@ -8845,6 +8863,121 @@ body.theme-surface-light .comm-voice-details-panel,
   .comm-live-wiz-tabs {
     grid-template-columns: 1fr;
   }
+}
+
+/* Integrated Native Screen & Window Picker */
+.comm-share-sources-wrap {
+  margin-bottom: 16px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+}
+.comm-share-sources-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.comm-share-sources-head span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+.comm-share-sources-tabs {
+  display: flex;
+  gap: 8px;
+}
+.comm-share-source-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.comm-share-source-tab:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+.comm-share-source-tab.is-on {
+  background: rgba(102, 192, 244, 0.15);
+  border-color: #66c0f4;
+  color: #66c0f4;
+}
+.comm-share-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.comm-share-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+.comm-share-card:hover {
+  border-color: rgba(102, 192, 244, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.comm-share-card.is-selected {
+  border-color: #66c0f4;
+  background: rgba(102, 192, 244, 0.08);
+  box-shadow: 0 0 12px rgba(102, 192, 244, 0.35);
+}
+.comm-share-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #090d16;
+  display: block;
+}
+.comm-share-thumb-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #090d16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 28px;
+}
+.comm-share-card-name {
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.comm-share-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(102, 192, 244, 0.9);
+  color: #0b1520;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .comm-live-hist-status.is-live {
